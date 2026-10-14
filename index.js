@@ -21,7 +21,7 @@
  * Memory is keyed by ONE fixed `endUserId` (one dsh user = one MemoryBear end
  * user). Subagent sessions are skipped for both recall and write.
  *
- * @module @redbear/dsh-memorybear
+ * @module @kesun5/dsh-memorybear
  */
 import { randomUUID } from 'node:crypto';
 import z from '@deepseek-ai/schemastery';

@@ -1,5 +1,5 @@
 /**
- * Browser half of @redbear/dsh-memorybear: the configuration page shown on
+ * Browser half of @kesun5/dsh-memorybear: the configuration page shown on
  * this bundle's page in dsh web's Plugins panel (`plugins.bundle.config`).
  *
  * Hand-written in the client module loader's lazy-CJS factory format (the
@@ -13,7 +13,7 @@
  * back into the browser.
  */
 window.__ModuleLoader__.load({
-	id: "@redbear/dsh-memorybear",
+	id: "@kesun5/dsh-memorybear",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;
@@ -22,7 +22,7 @@ window.__ModuleLoader__.load({
 		const h = React.createElement;
 
 		/** Package name: the key of this bundle's `plugins.bundle.config` entry. */
-		const PKG = "@redbear/dsh-memorybear";
+		const PKG = "@kesun5/dsh-memorybear";
 		/**
 		 * Config form namespace: since dsh 0.2 this is the Host profile entry id
 		 * (index.js SETTINGS_NAMESPACE, set by the bundle patch).
@@ -401,7 +401,7 @@ window.__ModuleLoader__.load({
 			".mb-save{height:32px;padding:0 16px;border-radius:8px;border:0;font:inherit;font-size:13px;cursor:pointer;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-on-brand,#fff)}",
 			".mb-save:disabled{opacity:.5;cursor:default}"
 		].join("");
-		const STYLE_ID = "@redbear/dsh-memorybear/config.css";
+		const STYLE_ID = "@kesun5/dsh-memorybear/config.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(STYLE_ID) + "]") === null) {
 			const tag = document.createElement("style");
 			tag.dataset.plugin = PKG;

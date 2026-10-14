@@ -73,7 +73,7 @@ const ctx = {
     },
     slots: {
         inject: (name, fn) => { assert.equal(name, 'plugins.bundle.config'); fn(); },
-        register: (opts, Comp) => { assert.equal(opts.key, '@redbear/dsh-memorybear'); Page = Comp; },
+        register: (opts, Comp) => { assert.equal(opts.key, '@kesun5/dsh-memorybear'); Page = Comp; },
     },
 };
 mod.apply(ctx);

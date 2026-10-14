@@ -31,7 +31,7 @@ dsh plugin --profile <你的 profile> add github:keeees/MemoryBearDSHPlugin
 然后把包名加进 profile 的 `package.json`：
 
 ```json
-"dsh": { "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless", "@redbear/dsh-memorybear"] } }
+"dsh": { "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-headless", "@kesun5/dsh-memorybear"] } }
 ```
 
 `add` 底层是 pnpm add，所以 npm 包名、git 地址、tgz 文件都可以用。本地开发时也可以用 `link:` 依赖指向源码目录。
