@@ -20,7 +20,9 @@ import sys
 from pathlib import Path
 
 SECRETS = Path.home() / ".config/redbear/secrets.env"
-FALLBACK_ENV = Path("/Users/ke/Documents/redbear/temp-repo/redbear-mem-benchmark/.env")
+# Optional extra dotenv file, e.g. DSH_MEMORYBEAR_ENV_FILE=~/path/to/.env
+_fallback = os.environ.get("DSH_MEMORYBEAR_ENV_FILE", "")
+FALLBACK_ENV = Path(_fallback).expanduser() if _fallback else Path("/nonexistent")
 
 
 def read_env(path: Path) -> dict[str, str]:
