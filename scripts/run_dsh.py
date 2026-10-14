@@ -82,6 +82,11 @@ def main() -> int:
     if missing:
         print(f"missing credentials ({mb_env}): {', '.join(missing)}", file=sys.stderr)
         return 1
+    # Optional model routes: loading a key does not select a route or change the default.
+    for name in ("DASHSCOPE_API_KEY", "NEWAPI_API_KEY"):
+        value = lookup(name)
+        if value:
+            env[name] = value
     print(f"[run_dsh] MemoryBear env: {mb_env}", file=sys.stderr)
     profile = os.environ.get("DSH_PROFILE", "memorybear")
     return subprocess.run(["dsh", "--profile", profile, *sys.argv[1:]], env=env, check=False).returncode
