@@ -1,0 +1,11 @@
+# MemoryBear long-term memory for DeepSeek Harness.
+# Required config (set in the profile's own cordis.patch.yml):
+#
+# - id: memorybear-memory
+#   config:
+#     baseURL: https://<memorybear-host>/v1   # V1 service API root
+#     endUserId: <end_user uuid>               # one fixed end user per dsh user
+#     # apiKeyEnv: MEMORYBEAR_API_KEY          # key is read from this env var, never from disk
+- insert:
+    - id: memorybear-memory
+      name: '@redbear/dsh-memorybear'
