@@ -42,12 +42,31 @@ function fakeHost(user = {}) {
     const config = Object.fromEntries(Object.keys(values).map((key) => [
         key, key === 'enabled' ? values[key] : { get: () => values[key] },
     ]));
+    // Optional `tools`: mimic cordis' `ctx.inject(['tools'], cb)` child fiber,
+    // which starts when the service is present and is disposed when it leaves.
+    let toolsFiber;
+    let toolsService = user.tools;
+    const startToolsFiber = () => {
+        if (!toolsService || !toolsFiber?.pending) return;
+        const disposers = [];
+        const tctx = {
+            tools: { register: (def) => { const off = toolsService.register(def); disposers.push(off); return off; } },
+            effect: (fn) => disposers.push(fn()),
+        };
+        toolsFiber.pending = false;
+        toolsFiber.dispose = () => { disposers.reverse().forEach((d) => d?.()); toolsFiber.pending = true; };
+        toolsFiber.cb(tctx);
+    };
     const ctx = {
         logger: { info: () => {}, warn: (m) => console.warn('  warn:', m) },
         on: (event, fn) => handlers.set(event, fn),
         effect: (fn) => effects.push(fn()),
         get: (n) => (n === 'credentials' ? { resolve: async (ref) => (ref === 'MB_TEST_KEY' ? { value: 'k-from-store' } : undefined) } : undefined),
-        tools: user.tools,
+        inject: (deps, cb) => {
+            assert.deepEqual(deps, ['tools']);
+            toolsFiber = { cb, pending: true };
+            startToolsFiber();
+        },
     };
     plugin.apply(ctx, config);
     const session = { id: 's-1', header: {} };
@@ -63,6 +82,8 @@ function fakeHost(user = {}) {
         setUser(layer) { compose(layer); handlers.get('loader/volatile-update')?.(); },
         disposeSession: () => handlers.get('session/disposed')(session),
         disposePlugin: () => effects.forEach((d) => d?.()),
+        provideTools(tools) { toolsService = tools; startToolsFiber(); },
+        removeTools() { toolsFiber?.dispose?.(); toolsService = undefined; },
     };
 }
 
@@ -167,6 +188,32 @@ await run('fresh install without baseURL/endUserId activates and stays silent un
     await settle();
     assert.equal(writes().length, 1);
     assert.equal(writes()[0].body.end_user_id, 'u-3');
+});
+
+await run('tools is optional: works without it, registers memory_search when it appears', async () => {
+    const live = new Map();
+    const tools = { register: (def) => { live.set(def.name, def); return () => live.delete(def.name); } };
+    // Hot install: the plugin starts before the tools service is visible.
+    const h = fakeHost();
+    h.turn('a1', 'b1');
+    await settle();
+    assert.equal(writes().length, 1);
+    assert.equal(live.has('memory_search'), false);
+    h.provideTools(tools);
+    assert.equal(live.has('memory_search'), true);
+    // Settings changes keep working against the late service.
+    h.setUser({ tool: false });
+    assert.equal(live.has('memory_search'), false);
+    h.setUser({ tool: true });
+    assert.equal(live.has('memory_search'), true);
+    // Service leaves: registration goes with it, writes continue.
+    h.removeTools();
+    assert.equal(live.has('memory_search'), false);
+    h.turn('a2', 'b2');
+    await settle();
+    assert.equal(writes().length, 2);
+    h.provideTools(tools);
+    assert.equal(live.has('memory_search'), true);
 });
 
 console.log('all write-mode tests passed');

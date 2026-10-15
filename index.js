@@ -14,9 +14,11 @@
  * 2. Write — a `session/event` listener. It collects the turn's real user text
  *    and the last assistant text, and on `turn/end` with reason `completed`
  *    posts them to `POST /memory/write` (server side queues a Celery task).
- * 3. Tool — `memory_search`, registered through `ctx.tools` when
- *    `@deepseek-ai/dsh-tools` is resolvable from this package; otherwise the
- *    plugin logs a warning and runs with recall/write only.
+ * 3. Tool — `memory_search`, registered through the host's `tools` service
+ *    (no dsh-tools import, see `defineTool`). `tools` is an OPTIONAL
+ *    dependency: the plugin activates without it (recall/write only)
+ *    and registers the tool whenever the service appears, so a hot install
+ *    that cannot see `tools` yet is not rolled back.
  *
  * Memory is keyed by ONE fixed `endUserId` (one dsh user = one MemoryBear end
  * user). Subagent sessions are skipped for both recall and write.
@@ -29,8 +31,11 @@ import z from '@deepseek-ai/schemastery';
 /** Cordis plugin name; also the `source.plugin` tag on injected messages. */
 export const name = 'memorybear-memory';
 
-/** Services this plugin needs: pre-step hooks, session events, tool registry. */
-export const inject = ['agents', 'sessions', 'tools'];
+/**
+ * Required services: pre-step hooks and session events. The `tools` registry is
+ * optional and is picked up through `ctx.inject(['tools'], ...)` in `apply`.
+ */
+export const inject = ['agents', 'sessions'];
 
 /** Write modes: every turn, every N turns, or once the session goes idle. */
 export const WRITE_MODES = Object.freeze(['turn', 'batch', 'idle']);
@@ -118,13 +123,35 @@ export const Config = z.object({
 /** Modes the model may choose for memory_search (server-side aliases). */
 const TOOL_SEARCH_SWITCHES = Object.freeze(['express', 'quick', 'normal', 'deep']);
 
-// Resolve the host's tool helper lazily: an external plugin installed into a
-// profile may not see `@deepseek-ai/dsh-tools`, and recall/write must still work.
-let defineTool;
-try {
-    ({ defineTool } = await import('@deepseek-ai/dsh-tools'));
-} catch {
-    defineTool = undefined;
+/**
+ * Build a tool definition for `ctx.tools.register()` without importing
+ * `@deepseek-ai/dsh-tools`.
+ *
+ * Shipping dsh-tools as a dependency put a second copy at the profile's
+ * hoisted `node_modules/@deepseek-ai/dsh-tools`; the profile then loaded THAT
+ * copy as its `tools` service, whose scheduler symbol differs from the one the
+ * agent loop uses, so every tool call in the profile failed with
+ * "Cannot read properties of undefined (reading 'prepare')". The registry only
+ * needs a plain object with JSON-schema `parameters` and `output.schema`.
+ *
+ * Args:
+ *     options: name, description, parameters (JSON schema), output
+ *         { schema, render }, isConcurrencySafe, execute.
+ *
+ * Returns:
+ *     The definition object; `execute` rejects a missing/non-string `query`.
+ */
+function defineTool(options) {
+    const userExecute = options.execute;
+    return {
+        ...options,
+        async execute(args, exec) {
+            if (typeof args?.query !== 'string' || !args.query.trim()) {
+                throw new TypeError('memory_search: `query` must be a non-empty string');
+            }
+            return userExecute(args, exec);
+        },
+    };
 }
 
 /**
@@ -438,7 +465,7 @@ export function apply(ctx, config) {
                 try {
                     const profile = await client.profile(query || 'user profile', signal);
                     if (profile) {
-                        const toolOn = cfg.tool && Boolean(defineTool && ctx.tools);
+                        const toolOn = cfg.tool && Boolean(toolsCtx);
                         added.push(pluginUserMessage(
                             renderProfileMessage(profile, cfg.maxRecallChars, toolOn), PROFILE_SECTION));
                     }
@@ -576,6 +603,8 @@ export function apply(ctx, config) {
     // schemas per request, so the next model call sees the new definition.
     let toolOff;
     let toolKey;
+    /** Child context holding the optional `tools` service; unset while it is absent. */
+    let toolsCtx;
     function syncTool() {
         const cfg = current();
         const toolSwitches = TOOL_SEARCH_SWITCHES.filter((s) => cfg.toolSearchSwitches.includes(s));
@@ -593,12 +622,11 @@ export function apply(ctx, config) {
         toolOff?.();
         toolOff = undefined;
         if (!cfg.tool) return;
-        if (!ctx.tools || !defineTool) {
-            ctx.logger.warn(`[${name}] memory_search not registered (tools service or @deepseek-ai/dsh-tools unavailable)`);
-            return;
-        }
+        // No `tools` service yet: the `ctx.inject(['tools'])` fiber below calls
+        // back here once it appears.
+        if (!toolsCtx) return;
         {
-            toolOff = ctx.tools.register(defineTool({
+            toolOff = toolsCtx.tools.register(defineTool({
                 name: 'memory_search',
                 description: 'Search the user\'s long-term memory (MemoryBear) for facts, preferences and past events. '
                     + (cfg.recall
@@ -609,20 +637,25 @@ export function apply(ctx, config) {
                             + 'their preferences, history, people, plans, or "remember"/"last time" references. '
                             + 'Do not call it for tasks that need no personal context.'),
                 parameters: {
-                    query: { type: 'string', required: true, description: 'A specific natural-language question about the user.' },
-                    search_switch: {
-                        type: 'string',
-                        enum: toolSwitches,
-                        description: 'Retrieval mode; pick the cheapest that fits. '
-                            + toolSwitches.map((s) => modeHelp[s]).join(' ')
-                            + ` Omit to use "${defaultToolSwitch}".`,
+                    type: 'object',
+                    properties: {
+                        query: { type: 'string', description: 'A specific natural-language question about the user.' },
+                        search_switch: {
+                            type: 'string',
+                            description: 'Retrieval mode; pick the cheapest that fits. '
+                                + toolSwitches.map((s) => modeHelp[s]).join(' ')
+                                + ` Omit to use "${defaultToolSwitch}".`,
+                            enum: toolSwitches,
+                        },
                     },
+                    required: ['query'],
                 },
                 output: {
                     schema: {
                         type: 'object',
                         additionalProperties: false,
-                        properties: { answer: { type: 'string', required: true } },
+                        properties: { answer: { type: 'string' } },
+                        required: ['answer'],
                     },
                     render: (_args, value) => [{ type: 'text', text: value.answer || '(no relevant memory found)' }],
                 },
@@ -657,9 +690,23 @@ export function apply(ctx, config) {
     }
     syncTool();
 
+    // Optional `tools`: this child fiber starts whenever the service is present
+    // and is disposed (taking the registration with it) when it goes away.
+    ctx.inject(['tools'], (tctx) => {
+        toolsCtx = tctx;
+        toolKey = undefined;
+        syncTool();
+        tctx.effect(() => () => {
+            toolsCtx = undefined;
+            toolOff = undefined;
+            toolKey = undefined;
+        }, `${name}: release tools`);
+        ctx.logger.info(`[${name}] tools service available; memory_search ${toolOff ? 'registered' : 'not registered'}`);
+    });
+
     // A Plugins-page save of volatile fields lands here, after the Loader has
     // committed the new values into the references `current()` reads.
     ctx.on('loader/volatile-update', () => onSettingsChange());
 
-    ctx.logger.info(`[${name}] loaded; endUser=${startup.endUserId}; profile=${startup.profile} recall=${startup.recall} write=${startup.write}/${startup.writeMode} tool=${startup.tool && Boolean(defineTool)}`);
+    ctx.logger.info(`[${name}] loaded; endUser=${startup.endUserId}; profile=${startup.profile} recall=${startup.recall} write=${startup.write}/${startup.writeMode} tool=${startup.tool}`);
 }
