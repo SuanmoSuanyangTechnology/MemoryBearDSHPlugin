@@ -56,11 +56,22 @@ export function snapshotConfig(config) {
     return out;
 }
 
+/**
+ * Names of the required connection fields that are still empty.
+ * @param {Record<string, any>} cfg - a config snapshot
+ * @returns {string[]} e.g. `['baseURL', 'endUserId']`; empty when configured
+ */
+export function missingConfig(cfg) {
+    return ['baseURL', 'endUserId'].filter((key) => !String(cfg[key] ?? '').trim());
+}
+
 /** Plugin configuration. */
 export const Config = z.object({
     enabled: z.boolean().default(true),
     /** V1 service API root, e.g. `https://host/v1`. */
-    baseURL: z.string().required().volatile(),
+    // Optional so a fresh install still activates; until both are set the
+    // plugin is a no-op (see `missingConfig`) and the Plugins page can fill them.
+    baseURL: z.string().default('').volatile(),
     /**
      * Credential reference for the API key (sent as `Authorization: Bearer`).
      * Resolved through dsh's credential store (launch env, `.credentials.yaml`,
@@ -68,7 +79,7 @@ export const Config = z.object({
      */
     apiKeyEnv: z.string().role('credential-ref').default('MEMORYBEAR_API_KEY').volatile(),
     /** The MemoryBear end_user UUID that owns this dsh user's memory. */
-    endUserId: z.string().required().volatile(),
+    endUserId: z.string().default('').volatile(),
     /** deep | normal | quick | express | recent | meta (server enum aliases). */
     searchSwitch: z.string().default('express').volatile(),
     /** Per-turn automatic recall with `searchSwitch` (noisy for unrelated questions). */
@@ -180,7 +191,9 @@ function createClient(getConfig, resolveKey) {
      * @throws {Error} on transport failure, non-2xx, or non-zero `code`
      */
     async function post(config, path, body, { timeoutMs, signal, headers = {} }) {
-        const base = config.baseURL.replace(/\/+$/, '');
+        const missing = missingConfig(config);
+        if (missing.length) throw new Error(`MemoryBear not configured: set ${missing.join(', ')} on the Plugins page or in the profile patch`);
+        const base = config.baseURL.trim().replace(/\/+$/, '');
         const key = await resolveKey(config);
         const signals = [AbortSignal.timeout(timeoutMs)];
         if (signal) signals.push(signal);
@@ -389,8 +402,12 @@ export function apply(ctx, config) {
 
     const client = createClient(() => current(), resolveKey);
     const startup = current();
+    const startupMissing = missingConfig(startup);
+    if (startupMissing.length) {
+        ctx.logger.warn(`[${name}] not configured (missing ${startupMissing.join(', ')}); memory recall/write are off until set on the Plugins page or in the profile patch`);
+    }
     resolveKey(startup).then((key) => {
-        if (!key) ctx.logger.warn(`[${name}] no API key under ${startup.apiKeyEnv}; MemoryBear calls will be rejected`);
+        if (!key && !startupMissing.length) ctx.logger.warn(`[${name}] no API key under ${startup.apiKeyEnv}; MemoryBear calls will be rejected`);
     });
 
     const isSubagent = (session) => session?.header?.origin === 'subagent';
@@ -402,6 +419,7 @@ export function apply(ctx, config) {
             const decision = await next();
             const cfg = current();
             if (!cfg.profile && !cfg.recall) return decision;
+            if (missingConfig(cfg).length) return decision;
             if (decision.kind === 'reject' || signal.aborted || step !== 1) return decision;
             if (isSubagent(agent.session)) return decision;
             const query = decision.messages.filter(isHumanMessage).map(messageText).join('\n').trim();
@@ -497,7 +515,7 @@ export function apply(ctx, config) {
     ctx.on('session/event', (session, event) => {
         if (isSubagent(session)) return;
         const cfg = current();
-        if (!cfg.write) return;
+        if (!cfg.write || missingConfig(cfg).length) return;
         const id = String(session.id);
         switch (event.type) {
             case 'turn/start':

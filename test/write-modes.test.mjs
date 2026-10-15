@@ -153,5 +153,21 @@ await run('tool settings re-register memory_search live', async () => {
     assert.equal(live.has('memory_search'), true);
 });
 
+await run('fresh install without baseURL/endUserId activates and stays silent until configured', async () => {
+    // A brand-new profile has no entry config at all: Config must accept it.
+    const cfg = plugin.snapshotConfig(plugin.Config({}));
+    assert.deepEqual(plugin.missingConfig(cfg), ['baseURL', 'endUserId']);
+    const h = fakeHost({ base: { baseURL: '', endUserId: '' } });
+    h.turn('a1', 'b1');
+    await settle();
+    assert.equal(writes().length, 0);
+    // Filling both on the Plugins page turns writes on without a remount.
+    h.setUser({ baseURL: `http://127.0.0.1:${port}/v1`, endUserId: 'u-3' });
+    h.turn('a2', 'b2');
+    await settle();
+    assert.equal(writes().length, 1);
+    assert.equal(writes()[0].body.end_user_id, 'u-3');
+});
+
 console.log('all write-mode tests passed');
 process.exit(0);

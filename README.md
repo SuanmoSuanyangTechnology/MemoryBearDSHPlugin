@@ -61,8 +61,8 @@ dsh plugin --profile <你的 profile> add github:keeees/MemoryBearDSHPlugin
 
 | 选项 | 默认 | 说明 |
 |---|---|---|
-| `baseURL` | 必填 | V1 服务 API 根地址 |
-| `endUserId` | 必填 | 一个 dsh 用户对应一个固定的 MemoryBear end_user |
+| `baseURL` | 空 | V1 服务 API 根地址。和 `endUserId` 都填上之前插件不连服务（召回、写入都不做，`memory_search` 返回"未配置"） |
+| `endUserId` | 空 | 一个 dsh 用户对应一个固定的 MemoryBear end_user |
 | `apiKeyEnv` | `MEMORYBEAR_API_KEY` | API key 的凭据引用 |
 | `profile` | `false` | 会话首轮加载 `meta` 画像 |
 | `recall` | `true` | 每轮自动召回 |
