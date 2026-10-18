@@ -14,6 +14,9 @@
  * 2. Write — a `session/event` listener. It collects the turn's real user text
  *    and the last assistant text, and on `turn/end` with reason `completed`
  *    posts them to `POST /memory/write` (server side queues a Celery task).
+ *    Attachments on the user message (dsh image/file blocks) are read from
+ *    the host `attachments` service, uploaded with `POST /memory/files/upload`
+ *    and referenced from the message's `files` (multimodal write).
  * 3. Tool — `memory_search`, registered through the host's `tools` service
  *    (no dsh-tools import, see `defineTool`). `tools` is an OPTIONAL
  *    dependency: the plugin activates without it (recall/write only)
@@ -39,6 +42,26 @@ export const inject = ['agents', 'sessions'];
 
 /** Write modes: every turn, every N turns, or once the session goes idle. */
 export const WRITE_MODES = Object.freeze(['turn', 'batch', 'idle']);
+
+/** Which user attachments are written to MemoryBear (see `Config.attachments`). */
+export const ATTACHMENT_MODES = Object.freeze(['none', 'images', 'all']);
+
+/** Memory panel data route on dsh's shared API channel (full path, `/api` included). */
+export const INSIGHTS_PATH = '/api/memorybear/insights';
+
+/**
+ * Whether `tz` is an IANA time zone this runtime knows.
+ * @param {string} tz
+ */
+export function isTimeZone(tz) {
+    if (!tz || tz.length > 64) return false;
+    try {
+        new Intl.DateTimeFormat('en', { timeZone: tz });
+        return true;
+    } catch {
+        return false;
+    }
+}
 
 /**
  * Settings namespace edited by the Plugins page (`client.js`). Since dsh 0.2
@@ -118,6 +141,21 @@ export const Config = z.object({
     minQueryChars: z.number().step(1).min(0).default(2).volatile(),
     /** Sent as `X-Language-Type` on writes: zh | en. */
     language: z.string().default('zh').volatile(),
+    /**
+     * Attachments written with the user's messages:
+     * - `none`: text only;
+     * - `images`: dsh image attachments (PNG/JPEG/WebP/GIF);
+     * - `all`: images plus files MemoryBear can parse (documents, audio, video).
+     */
+    attachments: z.union(ATTACHMENT_MODES.map((mode) => z.const(mode))).default('images').volatile(),
+    /** Attachments larger than this are skipped (MemoryBear's default upload cap is 50 MB). */
+    maxAttachmentMB: z.number().min(0.1).default(20).volatile(),
+    /** Budget for one `/memory/files/upload` call. */
+    uploadTimeoutMs: z.number().step(1).min(1).default(60_000).volatile(),
+    /** Show the 记忆 (memory) tab in dsh web's right sidebar: profile, emotion history and emotion tags. */
+    panel: z.boolean().default(true).volatile(),
+    /** Budget for each MemoryBear call behind the memory panel. */
+    panelTimeoutMs: z.number().step(1).min(1).default(20_000).volatile(),
 });
 
 /** Modes the model may choose for memory_search (server-side aliases). */
@@ -172,6 +210,56 @@ function isHumanMessage(message) {
     return message?.role === 'user' && message.source?.kind === 'user';
 }
 
+/**
+ * MemoryBear `FileInput.type` for a file name, by the extensions its parsers
+ * route (`core/rag/chunk/router.py`); undefined when it cannot parse the type.
+ */
+const FILE_KINDS = Object.freeze([
+    ['image', /\.(png|jpe?g|webp|gif)$/i],
+    ['audio', /\.(wav|wave|mp3|aac|flac|ogg|aiff|au|wma|ape|m4a)$/i],
+    ['video', /\.(mp4|mov|avi|flv|mpeg|mpg|webm|wmv|3gpp?|mkv)$/i],
+    ['document', /\.(pdf|docx?|pptx?|xlsx?|csv|txt|md|markdown|html?|json|jsonl)$/i],
+]);
+
+/**
+ * @param {string} fileName
+ * @returns {'image' | 'audio' | 'video' | 'document' | undefined}
+ */
+export function fileKind(fileName) {
+    return FILE_KINDS.find(([, re]) => re.test(fileName ?? ''))?.[0];
+}
+
+/** File extension for a dsh image media type. */
+const IMAGE_EXT = Object.freeze({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' });
+
+/**
+ * The attachment blocks of one user message that `mode` allows writing.
+ * dsh carries them as `{type:'image', attachment: ImageAttachmentRef}` and
+ * `{type:'file', attachment: FileAttachmentRef}` content blocks.
+ * @param {{content?: Array<{type: string, attachment?: object}>}} message
+ * @param {string} mode - one of ATTACHMENT_MODES
+ * @returns {Array<{type: 'image' | 'file', attachment: object}>}
+ */
+export function messageAttachments(message, mode) {
+    if (mode === 'none') return [];
+    return (message?.content ?? []).filter((block) => block?.attachment
+        && (block.type === 'image' || (mode === 'all' && block.type === 'file')));
+}
+
+/**
+ * Text stand-in for a user message that carries attachments but no text;
+ * `/memory/write` requires non-empty `content`.
+ * @param {Array<{type: string, attachment: {name?: string}}>} blocks
+ * @param {string} language - zh | en
+ */
+function attachmentPlaceholder(blocks, language) {
+    const zh = language !== 'en';
+    return blocks.map((b) => {
+        const label = b.type === 'image' ? (zh ? '图片' : 'image') : (zh ? '文件' : 'file');
+        return b.attachment.name ? `[${label}: ${b.attachment.name}]` : `[${label}]`;
+    }).join(' ');
+}
+
 /** Recursively freeze a plain object, mirroring dsh-llm `freezeMessage`. */
 function deepFreeze(value) {
     if (value && typeof value === 'object' && !Object.isFrozen(value)) {
@@ -218,6 +306,35 @@ function createClient(getConfig, resolveKey) {
      * @throws {Error} on transport failure, non-2xx, or non-zero `code`
      */
     async function post(config, path, body, { timeoutMs, signal, headers = {} }) {
+        return send(config, path, {
+            headers: { 'Content-Type': 'application/json', ...headers },
+            body: JSON.stringify(body),
+        }, { timeoutMs, signal });
+    }
+
+    /**
+     * GET with query parameters and unwrap the envelope.
+     * @param {ReturnType<typeof Config>} config - config snapshot for this call
+     * @param {string} path
+     * @param {Record<string, string | number>} query
+     * @param {{timeoutMs: number, signal?: AbortSignal, headers?: object}} opts
+     * @returns {Promise<any>} the envelope's `data`
+     */
+    async function get(config, path, query, { timeoutMs, signal, headers = {} }) {
+        const qs = new URLSearchParams(Object.entries(query).map(([k, v]) => [k, String(v)])).toString();
+        return send(config, `${path}?${qs}`, { method: 'GET', headers }, { timeoutMs, signal });
+    }
+
+    /**
+     * POST one request body and unwrap the `{code, msg, data}` envelope.
+     * @param {ReturnType<typeof Config>} config - config snapshot for this call
+     * @param {string} path
+     * @param {{headers: object, body: string | FormData}} init
+     * @param {{timeoutMs: number, signal?: AbortSignal}} opts
+     * @returns {Promise<any>} the envelope's `data`
+     * @throws {Error} on missing config, transport failure, non-2xx, or non-zero `code`
+     */
+    async function send(config, path, init, { timeoutMs, signal }) {
         const missing = missingConfig(config);
         if (missing.length) throw new Error(`MemoryBear not configured: set ${missing.join(', ')} on the Plugins page or in the profile patch`);
         const base = config.baseURL.trim().replace(/\/+$/, '');
@@ -225,13 +342,9 @@ function createClient(getConfig, resolveKey) {
         const signals = [AbortSignal.timeout(timeoutMs)];
         if (signal) signals.push(signal);
         const res = await fetch(`${base}${path}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${key ?? ''}`,
-                ...headers,
-            },
-            body: JSON.stringify(body),
+            method: init.method ?? 'POST',
+            headers: { ...init.headers, Authorization: `Bearer ${key ?? ''}` },
+            body: init.body,
             signal: AbortSignal.any(signals),
         });
         const text = await res.text();
@@ -290,6 +403,71 @@ function createClient(getConfig, resolveKey) {
                 headers: { 'X-Language-Type': config.language },
             });
         },
+        /**
+         * Upload one file for a later `/memory/write` `files` reference.
+         * @param {{data: Uint8Array, name: string, mediaType?: string}} file
+         * @returns {Promise<string>} the server `file_id`
+         * @throws {Error} on upload failure or a response without `file_id`
+         */
+        async upload({ data, name: fileName, mediaType }) {
+            const config = getConfig();
+            const form = new FormData();
+            form.append('file', new Blob([data], mediaType ? { type: mediaType } : {}), fileName);
+            // No Content-Type header: fetch sets the multipart boundary itself.
+            const result = await send(config, '/memory/files/upload', { headers: {}, body: form }, {
+                timeoutMs: config.uploadTimeoutMs,
+            });
+            if (!result?.file_id) throw new Error(`upload of ${fileName} returned no file_id`);
+            return String(result.file_id);
+        },
+        /**
+         * Everything the memory panel shows, fetched in parallel. Each part
+         * settles on its own, so one failing endpoint (e.g. an older server
+         * without the emotion API) leaves the others visible.
+         * @param {string} timeZone - IANA zone the emotion days are cut in
+         * @returns {Promise<{profile: object, overview: object, timeline: object, memory: object}>}
+         *     each `{ ok: true, data }` or `{ ok: false, error }`
+         */
+        async insights(timeZone) {
+            const config = getConfig();
+            const opts = { timeoutMs: config.panelTimeoutMs };
+            const lang = { 'X-Language-Type': config.language };
+            const emotionHeaders = { ...lang, 'X-Timezone': timeZone };
+            const user = { end_user_id: config.endUserId };
+            const parts = {
+                profile: post(config, '/memory/read/sync', { message: 'profile', search_switch: 'meta', end_user_id: config.endUserId }, opts)
+                    .then((data) => profileEntity(data) ?? null),
+                overview: get(config, '/memory/emotion-memory/query_emotion_overview', user, { ...opts, headers: emotionHeaders }),
+                timeline: get(config, '/memory/emotion-memory/query_emotion_timeline', { ...user, sort: 'desc', page: 1, pagesize: 14 }, { ...opts, headers: emotionHeaders }),
+                memory: get(config, '/dashboard/end_users', { keyword: config.endUserId }, { ...opts, headers: lang })
+                    .then((data) => memorySummary(data, config.endUserId)),
+            };
+            const keys = Object.keys(parts);
+            const settled = await Promise.allSettled(Object.values(parts));
+            return Object.fromEntries(settled.map((r, i) => [keys[i], r.status === 'fulfilled'
+                ? { ok: true, data: r.value }
+                : { ok: false, error: String(r.reason?.message ?? r.reason) }]));
+        },
+    };
+}
+
+/**
+ * This user's memory tags and counts from `/dashboard/end_users?keyword=`.
+ * `keyword` is a fuzzy search, so the row is matched on `end_user_id` exactly.
+ * @param {any} data - envelope `data`: `{items: [{end_user_id, tags, memory_num}], page}`
+ * @param {string} endUserId
+ * @returns {{tags: string[], total: number, active: number, limit: number | null} | null}
+ *     null when the user is not in the list
+ */
+export function memorySummary(data, endUserId) {
+    const row = (data?.items ?? []).find((x) => x?.end_user_id === endUserId);
+    if (!row) return null;
+    const num = row.memory_num ?? {};
+    return {
+        tags: (Array.isArray(row.tags) ? row.tags : []).map(String).filter(Boolean),
+        total: Number(num.total) || 0,
+        active: Number(num.active_count) || 0,
+        limit: num.memory_limit == null ? null : Number(num.memory_limit),
     };
 }
 
@@ -319,6 +497,77 @@ function profileItem(item) {
  * @param {any} data - the envelope's `data`
  * @returns {string} profile text, or '' when nothing is known yet
  */
+/**
+ * Structured `meta` profile for the memory panel: the summary line plus the
+ * PROFILE_FIELDS lists of the first entity that carries any.
+ * @param {any} data - `meta` read/sync payload
+ * @returns {{summary: string, fields: Array<{key: string, label: string, items: string[]}>, description: string} | undefined}
+ */
+function profileEntity(data) {
+    const answer = typeof data?.answer === 'string' ? data.answer : '';
+    const { rest, sections } = parseProfileSections(answer.replace(/<\/?user-info>/g, ''));
+    const fields = [];
+    let description = '';
+    for (const output of Array.isArray(data?.intermediate_outputs) ? data.intermediate_outputs : []) {
+        const entity = output?.data;
+        if (!entity || typeof entity !== 'object') continue;
+        for (const [key, label] of PROFILE_FIELDS) {
+            const items = Array.isArray(entity[key]) ? entity[key].filter(Boolean).map(profileItem) : [];
+            if (items.length) fields.push({ key, label, items });
+        }
+        if (!description && typeof entity.description === 'string') description = entity.description.trim();
+        if (fields.length) break;
+    }
+    // Fields only present as `<key>...</key>` sections of the answer text.
+    for (const [key, label] of PROFILE_FIELDS) {
+        if (!fields.some((f) => f.key === key) && sections[key]?.length) fields.push({ key, label, items: sections[key] });
+    }
+    fields.sort((a, b) => PROFILE_FIELDS.findIndex(([k]) => k === a.key) - PROFILE_FIELDS.findIndex(([k]) => k === b.key));
+    const summary = rest;
+    return summary || fields.length || description ? { summary, fields, description } : undefined;
+}
+
+/**
+ * Split the `meta` answer text into its `<field>...</field>` sections.
+ *
+ * The server renders profile fields inline, e.g.
+ * `<event_timeline>[2026-01-23|2026-01-23] desc|title|category|code；...</event_timeline>`
+ * and `<interests>['a', 'b']</interests>`. Known PROFILE_FIELDS sections become
+ * item lists; whatever text is left outside the tags is returned as `rest`.
+ * @param {string} text - answer text without the `<user-info>` wrapper
+ * @returns {{rest: string, sections: Record<string, string[]>}} free text and parsed sections
+ */
+export function parseProfileSections(text) {
+    const sections = {};
+    const known = new Set(PROFILE_FIELDS.map(([key]) => key));
+    const rest = String(text ?? '').replace(/<([a-z_]+)>([\s\S]*?)<\/\1>/g, (whole, key, body) => {
+        if (!known.has(key)) return whole;
+        sections[key] = key === 'event_timeline' ? timelineItems(body) : listItems(body);
+        return ' ';
+    }).replace(/\s+/g, ' ').trim();
+    return { rest, sections };
+}
+
+/** `['a', 'b']`, `a；b` or `a, b` -> ['a', 'b']. */
+function listItems(body) {
+    const s = String(body).trim();
+    const inner = /^\[[\s\S]*\]$/.test(s) ? s.slice(1, -1) : s;
+    const parts = /^\[/.test(s) ? inner.split(/['"]\s*,\s*['"]/) : inner.split(/[；;\n]/);
+    return parts.map((p) => p.replace(/^['"\s]+|['"\s]+$/g, '')).filter(Boolean);
+}
+
+/** `[start|end] desc|title|category|code；...` -> ['start 标题', ...] (date range collapsed when equal). */
+function timelineItems(body) {
+    return String(body).split(/；|;\s*(?=\[)/).map((entry) => {
+        const m = entry.trim().match(/^\[([^|\]]*)\|?([^\]]*)\]\s*([\s\S]*)$/);
+        if (!m) return entry.trim();
+        const [, start, end, tail] = m;
+        const [desc, title] = tail.split('|');
+        const when = !end || end === start ? start : `${start} ~ ${end}`;
+        return `${when} ${(title || desc || '').trim()}`.trim();
+    }).filter(Boolean);
+}
+
 function renderProfile(data) {
     const lines = [];
     const answer = typeof data?.answer === 'string' ? data.answer : '';
@@ -497,6 +746,91 @@ export function apply(ctx, config) {
     const pending = new Map();
 
     /**
+     * `baseURL|attachmentId` -> uploaded `file_id`, so an image reused across
+     * turns (or re-flushed after a settings change) is uploaded once.
+     * Bounded: the oldest entry is evicted past UPLOAD_CACHE_MAX.
+     */
+    const uploaded = new Map();
+    const UPLOAD_CACHE_MAX = 500;
+
+    /**
+     * Turn one message's attachment blocks into MemoryBear `files` entries:
+     * read the bytes from the host `attachments` service, upload each, and
+     * reference it as `local_file`. A block that cannot be read, is too big,
+     * has a type MemoryBear cannot parse, or fails to upload is skipped with
+     * a warning; the text of the turn is still written.
+     * @param {Array<{type: string, attachment: object}>} blocks
+     * @param {ReturnType<typeof Config>} cfg
+     * @returns {Promise<object[]>} `FileInput` dicts for `/memory/write`
+     */
+    async function resolveFiles(blocks, cfg) {
+        const store = ctx.get('attachments');
+        if (!store) {
+            ctx.logger.warn(`[${name}] ${blocks.length} attachment(s) not written: no attachments service in this profile`);
+            return [];
+        }
+        const maxBytes = cfg.maxAttachmentMB * 1024 * 1024;
+        const files = [];
+        for (const { type, attachment: ref } of blocks) {
+            const isImage = type === 'image';
+            // attachmentId is opaque (e.g. `sha256:<hex>`); keep only filename-safe characters.
+            const idTag = String(ref.attachmentId).replace(/^[a-z0-9]+:/i, '').replace(/[^A-Za-z0-9]/g, '').slice(0, 12);
+            const fileName = ref.name || (isImage
+                ? `image-${idTag}.${IMAGE_EXT[ref.mediaType] ?? 'png'}`
+                : `file-${idTag}`);
+            const kind = isImage ? 'image' : fileKind(fileName);
+            try {
+                if (!kind) throw new Error('type not supported by MemoryBear');
+                if (ref.bytes > maxBytes) throw new Error(`${ref.bytes} bytes exceeds maxAttachmentMB=${cfg.maxAttachmentMB}`);
+                const cacheKey = `${cfg.baseURL}|${ref.attachmentId}`;
+                let fileId = uploaded.get(cacheKey);
+                if (!fileId) {
+                    let data;
+                    if (isImage) {
+                        data = (await store.readImage(ref)).data;
+                    } else {
+                        const chunks = [];
+                        for await (const chunk of store.readFileStream(ref)) chunks.push(chunk);
+                        data = Buffer.concat(chunks);
+                    }
+                    fileId = await client.upload({ data, name: fileName, mediaType: isImage ? ref.mediaType : undefined });
+                    uploaded.set(cacheKey, fileId);
+                    if (uploaded.size > UPLOAD_CACHE_MAX) uploaded.delete(uploaded.keys().next().value);
+                }
+                files.push({
+                    type: kind,
+                    transfer_method: 'local_file',
+                    upload_file_id: fileId,
+                    name: fileName,
+                    size: ref.bytes,
+                    ...(isImage ? { file_type: ref.mediaType } : {}),
+                });
+            } catch (error) {
+                ctx.logger.warn(`[${name}] attachment ${fileName} not written: ${String(error?.message ?? error)}`);
+            }
+        }
+        return files;
+    }
+
+    /**
+     * Upload the attachments of a batch and build the `/memory/write` messages.
+     * @param {object[]} entries - pending messages; user ones may carry `attachments`
+     * @returns {Promise<object[]>}
+     */
+    async function buildMessages(entries) {
+        const cfg = current();
+        const out = [];
+        for (const { attachments, ...message } of entries) {
+            if (attachments?.length) {
+                const files = await resolveFiles(attachments, cfg);
+                if (files.length) message.files = files;
+            }
+            out.push(message);
+        }
+        return out;
+    }
+
+    /**
      * Send one session's pending turns in a single `/memory/write` call.
      * Fire-and-forget: never blocks or fails the agent.
      * @param {string} id - session id
@@ -508,7 +842,7 @@ export function apply(ctx, config) {
         clearTimeout(batch.timer);
         pending.delete(id);
         if (batch.messages.length === 0) return;
-        client.write(batch.messages).then(
+        buildMessages(batch.messages).then((messages) => client.write(messages)).then(
             (data) => ctx.logger.info(`[${name}] write (${reason}, ${batch.turns} turn(s)) queued for session ${id}: ${JSON.stringify(data)}`),
             (error) => ctx.logger.warn(`[${name}] write (${reason}) failed for session ${id}: ${String(error?.message ?? error)}`),
         );
@@ -553,8 +887,9 @@ export function apply(ctx, config) {
             case 'user/message': {
                 const state = turns.get(id);
                 if (state && isHumanMessage(event.data)) {
-                    const text = messageText(event.data);
-                    if (text) state.user.push(text);
+                    const blocks = messageAttachments(event.data, cfg.attachments);
+                    const text = messageText(event.data) || (blocks.length ? attachmentPlaceholder(blocks, cfg.language) : '');
+                    if (text) state.user.push({ content: text, attachments: blocks });
                 }
                 return;
             }
@@ -574,7 +909,7 @@ export function apply(ctx, config) {
                     const at = new Date(state.startedAt).toISOString();
                     const batch = pending.get(id) ?? { messages: [], turns: 0 };
                     batch.messages.push(
-                        ...state.user.map((content) => ({ role: 'user', content, dialog_at: at })),
+                        ...state.user.map(({ content, attachments }) => ({ role: 'user', content, dialog_at: at, attachments })),
                         { role: 'assistant', content: state.assistant, dialog_at: new Date(event.time ?? Date.now()).toISOString() },
                     );
                     batch.turns += 1;
@@ -707,6 +1042,32 @@ export function apply(ctx, config) {
     // A Plugins-page save of volatile fields lands here, after the Loader has
     // committed the new values into the references `current()` reads.
     ctx.on('loader/volatile-update', () => onSettingsChange());
+
+    // ── 4. Memory panel data: GET /api/memorybear/insights ──
+    // Optional `connection` (web/desktop hosts only; headless has none). The
+    // route sits on dsh's shared API channel, so Connection applies its own
+    // browser-session trust and authentication before `fetch` runs; the API
+    // key stays on the Host and never reaches the browser.
+    ctx.inject(['connection'], (cctx) => {
+        cctx.effect(() => cctx.connection.fetch.register({
+            path: INSIGHTS_PATH,
+            methods: ['GET'],
+            requestBody: 'buffered',
+            fetch: async (request) => {
+                const cfg = current();
+                const json = (status, body) => new Response(JSON.stringify(body), {
+                    status,
+                    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+                });
+                if (!cfg.panel) return json(404, { error: 'panel disabled' });
+                const missing = missingConfig(cfg);
+                if (missing.length) return json(200, { configured: false, missing });
+                const tz = new URL(request.url).searchParams.get('tz') ?? '';
+                const timeZone = isTimeZone(tz) ? tz : Intl.DateTimeFormat().resolvedOptions().timeZone;
+                return json(200, { configured: true, timeZone, ...(await client.insights(timeZone)) });
+            },
+        }), `${name}: insights route`);
+    });
 
     ctx.logger.info(`[${name}] loaded; endUser=${startup.endUserId}; profile=${startup.profile} recall=${startup.recall} write=${startup.write}/${startup.writeMode} tool=${startup.tool}`);
 }

@@ -1,6 +1,6 @@
 {
   "name": "@kesun5/dsh-memorybear",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "description": "MemoryBear long-term memory for DeepSeek Harness: per-turn recall, end-of-turn write, and a memory_search tool",
   "icon": "./icon.png",
   "type": "module",

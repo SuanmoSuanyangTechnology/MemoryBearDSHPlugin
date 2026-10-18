@@ -45,6 +45,7 @@ function fakeHost(user = {}) {
     // Optional `tools`: mimic cordis' `ctx.inject(['tools'], cb)` child fiber,
     // which starts when the service is present and is disposed when it leaves.
     let toolsFiber;
+    let connectionRoutes = new Map();
     let toolsService = user.tools;
     const startToolsFiber = () => {
         if (!toolsService || !toolsFiber?.pending) return;
@@ -61,8 +62,18 @@ function fakeHost(user = {}) {
         logger: { info: () => {}, warn: (m) => console.warn('  warn:', m) },
         on: (event, fn) => handlers.set(event, fn),
         effect: (fn) => effects.push(fn()),
-        get: (n) => (n === 'credentials' ? { resolve: async (ref) => (ref === 'MB_TEST_KEY' ? { value: 'k-from-store' } : undefined) } : undefined),
+        get: (n) => {
+            if (n === 'credentials') return { resolve: async (ref) => (ref === 'MB_TEST_KEY' ? { value: 'k-from-store' } : undefined) };
+            if (n === 'attachments') return user.attachments;
+            return undefined;
+        },
         inject: (deps, cb) => {
+            if (deps[0] === 'connection') {
+                const routes = new Map();
+                if (user.connection) cb({ connection: { fetch: { register: (r) => { routes.set(r.path, r); return async () => routes.delete(r.path); } } }, effect: (fn) => effects.push(fn()) });
+                connectionRoutes = routes;
+                return;
+            }
             assert.deepEqual(deps, ['tools']);
             toolsFiber = { cb, pending: true };
             startToolsFiber();
@@ -79,10 +90,18 @@ function fakeHost(user = {}) {
             emit('assistant/message', { message: { content: [{ type: 'text', text: answer }] } });
             emit('turn/end', { reason: { kind: 'completed' } });
         },
+        /** One completed turn whose user message has these content blocks. */
+        turnWith(content, answer) {
+            emit('turn/start');
+            emit('user/message', { role: 'user', source: { kind: 'user' }, content });
+            emit('assistant/message', { message: { content: [{ type: 'text', text: answer }] } });
+            emit('turn/end', { reason: { kind: 'completed' } });
+        },
         setUser(layer) { compose(layer); handlers.get('loader/volatile-update')?.(); },
         disposeSession: () => handlers.get('session/disposed')(session),
         disposePlugin: () => effects.forEach((d) => d?.()),
         provideTools(tools) { toolsService = tools; startToolsFiber(); },
+        route: (path) => connectionRoutes.get(path),
         removeTools() { toolsFiber?.dispose?.(); toolsService = undefined; },
     };
 }
@@ -214,6 +233,115 @@ await run('tools is optional: works without it, registers memory_search when it 
     assert.equal(writes().length, 2);
     h.provideTools(tools);
     assert.equal(live.has('memory_search'), true);
+});
+
+/** Fake dsh `attachments` store: images by `readImage`, files by `readFileStream`. */
+function fakeAttachments() {
+    const reads = [];
+    return {
+        reads,
+        async readImage(ref) { reads.push(ref.attachmentId); return { ref, data: new Uint8Array(ref.bytes).fill(7) }; },
+        async *readFileStream(ref) { reads.push(ref.attachmentId); yield new Uint8Array(ref.bytes).fill(9); },
+    };
+}
+const IMG = { type: 'image', attachment: { attachmentId: 'img-aaaaaaaaaaaa1', mediaType: 'image/jpeg', bytes: 1234, width: 10, height: 10, name: '猫.jpg' } };
+const PDF = { type: 'file', attachment: { attachmentId: 'f-pdf', name: '报告.pdf', bytes: 300 } };
+const ZIP = { type: 'file', attachment: { attachmentId: 'f-zip', name: 'code.zip', bytes: 300 } };
+const BIG = { type: 'file', attachment: { attachmentId: 'f-big', name: 'big.mp4', bytes: 2 * 1024 * 1024 } };
+const uploads = () => readFileSync(log, 'utf8').trim().split('\n').filter(Boolean)
+    .map((l) => JSON.parse(l)).filter((r) => r.path === '/v1/memory/files/upload');
+
+await run('images (default): image uploaded and referenced, files ignored, reuse uploads once', async () => {
+    const store = fakeAttachments();
+    const h = fakeHost({ attachments: store });
+    h.turnWith([{ type: 'text', text: '这是我家的猫' }, IMG, PDF], '好可爱');
+    await settle();
+    assert.equal(uploads().length, 1);
+    assert.equal(uploads()[0].body.filename, '猫.jpg');
+    assert.equal(uploads()[0].body.contentType, 'image/jpeg');
+    assert.equal(uploads()[0].body.bytes, 1234);
+    const [w] = writes();
+    assert.equal(w.body.messages[0].content, '这是我家的猫');
+    assert.deepEqual(w.body.messages[0].files, [{
+        type: 'image', transfer_method: 'local_file', upload_file_id: 'mock-file-1234', name: '猫.jpg', size: 1234, file_type: 'image/jpeg',
+    }]);
+    assert.equal('files' in w.body.messages[1], false);
+    assert.equal('attachments' in w.body.messages[0], false);
+    // Same image again: referenced again, not re-uploaded.
+    h.turnWith([{ type: 'text', text: '再看一眼' }, IMG], '嗯');
+    await settle();
+    assert.equal(uploads().length, 1);
+    assert.equal(writes()[1].body.messages[0].files[0].upload_file_id, 'mock-file-1234');
+});
+
+await run('image-only message gets a placeholder content', async () => {
+    const h = fakeHost({ attachments: fakeAttachments() });
+    h.turnWith([IMG], '收到图片');
+    await settle();
+    assert.equal(writes()[0].body.messages[0].content, '[图片: 猫.jpg]');
+    assert.equal(writes()[0].body.messages[0].files.length, 1);
+});
+
+await run('all: parseable files uploaded by kind; unknown type and oversize skipped', async () => {
+    const h = fakeHost({ attachments: fakeAttachments(), layer: { attachments: 'all', maxAttachmentMB: 1 } });
+    h.turnWith([{ type: 'text', text: '资料' }, PDF, ZIP, BIG], 'ok');
+    await settle();
+    assert.deepEqual(uploads().map((u) => u.body.filename), ['报告.pdf']);
+    assert.deepEqual(writes()[0].body.messages[0].files.map((f) => [f.type, f.name]), [['document', '报告.pdf']]);
+});
+
+await run('none: no uploads; no attachments service: text still written', async () => {
+    const h1 = fakeHost({ attachments: fakeAttachments(), layer: { attachments: 'none' } });
+    h1.turnWith([{ type: 'text', text: 't1' }, IMG], 'a1');
+    await settle();
+    assert.equal(uploads().length, 0);
+    assert.equal('files' in writes()[0].body.messages[0], false);
+    const h2 = fakeHost();
+    h2.turnWith([{ type: 'text', text: 't2' }, IMG], 'a2');
+    await settle();
+    assert.equal(uploads().length, 0);
+    assert.equal(writes()[1].body.messages[0].content, 't2');
+});
+
+await run('fileKind maps MemoryBear-parseable extensions', async () => {
+    assert.equal(plugin.fileKind('a.PDF'), 'document');
+    assert.equal(plugin.fileKind('a.m4a'), 'audio');
+    assert.equal(plugin.fileKind('a.mov'), 'video');
+    assert.equal(plugin.fileKind('a.webp'), 'image');
+    assert.equal(plugin.fileKind('a.zip'), undefined);
+});
+
+await run('insights route: profile, emotion overview/timeline/tags with browser time zone', async () => {
+    const h = fakeHost({ connection: true });
+    const route = h.route(plugin.INSIGHTS_PATH);
+    assert.ok(route, 'route registered when connection is present');
+    assert.deepEqual(route.methods, ['GET']);
+    const res = await route.fetch(new Request(`http://127.0.0.1${plugin.INSIGHTS_PATH}?tz=Asia/Shanghai`));
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.configured, true);
+    assert.equal(body.timeZone, 'Asia/Shanghai');
+    assert.equal(body.profile.ok, true);
+    assert.equal(body.profile.data.summary, '喜欢柯基的设计师');
+    assert.deepEqual(body.profile.data.fields.map((f) => f.key), ['interests', 'goals']);
+    assert.equal(body.overview.data.conclusion.title, '情绪回暖');
+    assert.equal(body.timeline.data.items.length, 2);
+    assert.deepEqual(body.memory.data, { tags: ['柯基', '冲浪'], total: 42, active: 30, limit: 5000 });
+    assert.equal(body.tags, undefined);
+    const log = readFileSync(process.env.MOCK_LOG, 'utf8');
+    assert.match(log, /query_emotion_timeline\?end_user_id=u-1&sort=desc&page=1&pagesize=14/);
+    assert.match(log, /dashboard\/end_users\?keyword=u-1/);
+    // A bogus zone falls back to the host's zone instead of reaching MemoryBear.
+    const bad = await (await route.fetch(new Request(`http://127.0.0.1${plugin.INSIGHTS_PATH}?tz=Mars/Base`))).json();
+    assert.notEqual(bad.timeZone, 'Mars/Base');
+    // Panel off: route answers 404; unconfigured: says what is missing.
+    h.setUser({ panel: false });
+    assert.equal((await route.fetch(new Request('http://127.0.0.1/x'))).status, 404);
+    const fresh = fakeHost({ connection: true, base: { baseURL: '', endUserId: '' } });
+    const un = await (await fresh.route(plugin.INSIGHTS_PATH).fetch(new Request('http://127.0.0.1/x'))).json();
+    assert.deepEqual(un, { configured: false, missing: ['baseURL', 'endUserId'] });
+    // Headless (no connection service): no route, nothing breaks.
+    assert.equal(fakeHost().route(plugin.INSIGHTS_PATH), undefined);
 });
 
 console.log('all write-mode tests passed');

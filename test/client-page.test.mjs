@@ -56,10 +56,24 @@ const scope = {
     },
 };
 let Page;
+let Panel;
+let panelType;
 const credentialSets = [];
 const ctx = {
     effect: (fn) => fn(),
-    locale: { register: () => () => {} },
+    locale: { register: () => () => {}, bind: () => (k) => k },
+    // Optional right sidebar: the panel registers its tab type and body slot.
+    inject: (deps, cb) => {
+        assert.equal(JSON.stringify(deps), '["sidebarRightTabs"]');
+        cb({
+            ...ctx,
+            sidebarRightTabs: { register: (def) => { panelType = def; return () => {}; } },
+            slots: {
+                inject: (name, fn) => { assert.equal(name, 'sidebar.right.pane.tab'); fn(); },
+                register: (opts, Comp) => { assert.equal(opts.key, '@kesun5/dsh-memorybear/panel'); Panel = Comp; },
+            },
+        });
+    },
     remote: {
         $on: () => () => {},
         credentials: {
@@ -78,6 +92,10 @@ const ctx = {
 };
 mod.apply(ctx);
 assert.ok(Page, 'page registered');
+assert.ok(Panel, 'memory panel body registered');
+assert.equal(panelType.id, '@kesun5/dsh-memorybear/panel');
+assert.equal(panelType.kind, 'memorybear');
+assert.equal(panelType.title(), 'panelTitle');
 const t = (k) => k;
 await new Promise((r) => setTimeout(r, 10)); // credential describe settles
 

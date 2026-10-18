@@ -45,7 +45,9 @@ window.__ModuleLoader__.load({
 			endUserId: { kind: "text" },
 			writeMode: { kind: "select", options: ["turn", "batch", "idle"] },
 			writeEveryTurns: { kind: "int", min: 1 },
-			writeIdleMinutes: { kind: "number", min: 0.1 }
+			writeIdleMinutes: { kind: "number", min: 0.1 },
+			attachments: { kind: "select", options: ["none", "images", "all"] },
+			panel: { kind: "bool" }
 		};
 
 		const zh = {
@@ -90,6 +92,40 @@ window.__ModuleLoader__.load({
 			writeEveryTurns: "每几轮写一次",
 			writeIdleMinutes: "空闲多久后写入（分钟）",
 			flushNote: "会话关闭或 dsh 退出时，未写入的内容会尽量补写；进程被直接杀掉时可能丢失。",
+			attachments: "附件写入",
+			attach_none: "不写附件，只写文字",
+			attach_images: "写入图片",
+			attach_all: "写入图片和文件",
+			attachHint_none: "用户发的图片和文件都不上传。",
+			attachHint_images: "用户发的图片随这一轮上传到 MemoryBear；文件不上传。",
+			attachHint_all: "图片和 MemoryBear 能解析的文件（文档、音频、视频）都上传；其他类型和超过大小上限（默认 20MB）的跳过。",
+			panelTitle: "记忆",
+			panelSwitch: "右侧栏记忆面板",
+			panelSwitchHint: "在会话右侧栏加一个“记忆”标签页，显示记忆数、记忆标签、情绪记录和用户画像。关掉后标签页显示已关闭。",
+			panelGuide: "MemoryBear 里的记忆数、记忆标签、近期情绪和用户画像",
+			panelRefresh: "刷新",
+			panelUpdated: "{time} 更新",
+			panelFailed: "记忆加载失败：{reason}",
+			panelPartFailed: "暂时拿不到：{reason}",
+			panelDisabled: "记忆面板已在插件设置里关闭。",
+			panelUnconfigured: "MemoryBear 还没配置（缺 {missing}），请先在插件页填写。",
+			panelEmpty: "暂无数据。",
+			panelProfile: "用户画像",
+			panelMemoryUnit: "条记忆",
+			panelMemoryActive: "{active} 条活跃",
+			panelLatest: "最近情绪",
+			panelLatestOn: "{date} · {n} 段对话",
+			panelMemoryTags: "记忆标签",
+			panelTimeline: "情绪记录",
+			panelEmotionDays: "近 {n} 个活跃日情绪",
+			panelByDay: "按天查看",
+			panelMore: "展开其余 {n} 项",
+			panelDialogues: "{n} 段对话",
+			panelNoEmotion: "没有记录到情绪",
+			pf_core_facts: "核心事实", pf_traits: "性格特点", pf_interests: "兴趣", pf_goals: "目标",
+			pf_beliefs_or_stances: "观点立场", pf_relations: "人际关系", pf_event_timeline: "事件时间线", pf_anchors: "关键锚点",
+			emo_joy: "喜悦", emo_relief: "释然", emo_hope: "希望", emo_neutral: "平静", emo_confusion: "困惑", emo_anxiety: "焦虑",
+			emo_sadness: "悲伤", emo_loneliness: "孤独", emo_frustration: "挫败", emo_anger: "愤怒", emo_fear: "恐惧", emo_surprise: "惊讶",
 			overridden: "已覆盖",
 			reset: "恢复默认",
 			save: "保存",
@@ -141,6 +177,40 @@ window.__ModuleLoader__.load({
 			writeEveryTurns: "Turns per write",
 			writeIdleMinutes: "Idle time before writing (minutes)",
 			flushNote: "Unwritten turns are flushed when a session closes or dsh exits; a killed process may lose them.",
+			attachments: "Attachments",
+			attach_none: "Text only",
+			attach_images: "Write images",
+			attach_all: "Write images and files",
+			attachHint_none: "Images and files the user attaches are not uploaded.",
+			attachHint_images: "Images the user attaches are uploaded to MemoryBear with the turn; files are not.",
+			attachHint_all: "Images and files MemoryBear can parse (documents, audio, video) are uploaded; other types and anything over the size cap (20 MB by default) are skipped.",
+			panelTitle: "Memory",
+			panelSwitch: "Memory panel in the right sidebar",
+			panelSwitchHint: "Adds a Memory tab to the session's right sidebar with memory counts, memory tags, emotion history and the user profile. When off, the tab says it is turned off.",
+			panelGuide: "Memory counts, memory tags, recent emotions and profile from MemoryBear",
+			panelRefresh: "Refresh",
+			panelUpdated: "Updated {time}",
+			panelFailed: "Could not load memory: {reason}",
+			panelPartFailed: "Not available: {reason}",
+			panelDisabled: "The memory panel is turned off in this plugin's settings.",
+			panelUnconfigured: "MemoryBear is not configured yet (missing {missing}). Fill it in on the Plugins page.",
+			panelEmpty: "No data yet.",
+			panelProfile: "Profile",
+			panelMemoryUnit: "memories",
+			panelMemoryActive: "{active} active",
+			panelLatest: "Latest emotion",
+			panelLatestOn: "{date} · {n} dialogues",
+			panelMemoryTags: "Memory tags",
+			panelTimeline: "Emotion history",
+			panelEmotionDays: "Emotions over {n} active days",
+			panelByDay: "By day",
+			panelMore: "Show {n} more",
+			panelDialogues: "{n} dialogues",
+			panelNoEmotion: "No emotion recorded",
+			pf_core_facts: "Core facts", pf_traits: "Traits", pf_interests: "Interests", pf_goals: "Goals",
+			pf_beliefs_or_stances: "Beliefs / stances", pf_relations: "Relations", pf_event_timeline: "Event timeline", pf_anchors: "Anchors",
+			emo_joy: "Joy", emo_relief: "Relief", emo_hope: "Hope", emo_neutral: "Neutral", emo_confusion: "Confusion", emo_anxiety: "Anxiety",
+			emo_sadness: "Sadness", emo_loneliness: "Loneliness", emo_frustration: "Frustration", emo_anger: "Anger", emo_fear: "Fear", emo_surprise: "Surprise",
 			overridden: "Overridden",
 			reset: "Reset to default",
 			save: "Save",
@@ -399,7 +469,46 @@ window.__ModuleLoader__.load({
 			".mb-check{display:inline-flex;align-items:center;gap:8px;cursor:pointer}",
 			".mb-checks{display:flex;flex-wrap:wrap;gap:16px;padding:4px 0}",
 			".mb-save{height:32px;padding:0 16px;border-radius:8px;border:0;font:inherit;font-size:13px;cursor:pointer;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-on-brand,#fff)}",
-			".mb-save:disabled{opacity:.5;cursor:default}"
+			".mb-save:disabled{opacity:.5;cursor:default}",
+			// Right-sidebar memory panel (layout A: stat tiles, then details)
+			".mb-panel{display:flex;flex-direction:column;gap:20px;padding:16px;height:100%;overflow:auto;box-sizing:border-box;color:var(--dsw-alias-label-primary);font-size:13px;line-height:1.5}",
+			".mb-panel-bar{display:flex;align-items:center;gap:8px;margin-bottom:-8px}",
+			".mb-panel-bar .mb-hint{flex:1;font-size:11px}",
+			".mb-refresh{font:inherit;font-size:12px;height:24px;padding:0 10px;border-radius:999px;border:0;background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-secondary);cursor:pointer}",
+			".mb-refresh:hover{color:var(--dsw-alias-label-primary)}",
+			".mb-refresh:disabled{opacity:.5;cursor:default}",
+			".mb-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}",
+			".mb-tile{display:flex;flex-direction:column;gap:2px;padding:12px;border-radius:12px;background:var(--dsw-alias-bg-layer-2);min-width:0}",
+			".mb-tile-label{font-size:11px;color:var(--dsw-alias-label-tertiary)}",
+			".mb-big{font-size:22px;font-weight:600;line-height:1.2;color:var(--dsw-alias-label-primary);display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+			".mb-big small{font-size:12px;font-weight:400;color:var(--dsw-alias-label-secondary)}",
+			".mb-tile-sub{font-size:11px;color:var(--dsw-alias-label-secondary)}",
+			".mb-sec{display:flex;flex-direction:column;gap:8px}",
+			".mb-sec-title{margin:0;font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--dsw-alias-label-tertiary)}",
+			".mb-chips{display:flex;flex-wrap:wrap;gap:6px}",
+			".mb-chip{font-size:12px;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,var(--dsw-alias-brand-primary) 12%,transparent);color:var(--dsw-alias-label-primary)}",
+			".mb-note{margin:0;font-size:12px;color:var(--dsw-alias-label-secondary)}",
+			".mb-note b{color:var(--dsw-alias-label-primary);font-weight:500}",
+			".mb-fold{border-radius:12px;background:var(--dsw-alias-bg-layer-2);padding:4px 12px}",
+			".mb-fold>summary{cursor:pointer;padding:8px 0;font-size:12px;color:var(--dsw-alias-label-secondary);list-style:none;display:flex;justify-content:space-between}",
+			".mb-fold>summary::-webkit-details-marker{display:none}",
+			".mb-fold>summary::after{content:'›';transition:transform .15s}",
+			".mb-fold[open]>summary::after{transform:rotate(90deg)}",
+			"@media (prefers-reduced-motion:reduce){.mb-fold>summary::after{transition:none}}",
+			".mb-fold-body{padding:0 0 10px;display:flex;flex-direction:column;gap:10px}",
+			".mb-summary{margin:0}",
+			".mb-desc{margin:0;padding-left:18px}",
+			".mb-kv{display:flex;flex-direction:column;gap:2px}",
+			".mb-kv b{font-size:11px;font-weight:600;color:var(--dsw-alias-label-tertiary)}",
+			".mb-kv ul{margin:0;padding-left:18px}",
+			".mb-day{display:flex;flex-direction:column;gap:4px;padding:6px 0}",
+			".mb-day+.mb-day{border-top:.5px solid var(--dsw-alias-border-l2)}",
+			".mb-day-head{display:flex;justify-content:space-between;font-size:12px;color:var(--dsw-alias-label-secondary)}",
+			".mb-bar{display:flex;gap:2px;height:10px;border-radius:5px;overflow:hidden;background:var(--dsw-alias-bg-layer-3)}",
+			".mb-day .mb-bar{height:6px}",
+			".mb-bar span{display:block;height:100%}",
+			".mb-legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--dsw-alias-label-secondary)}",
+			".mb-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}"
 		].join("");
 		const STYLE_ID = "@kesun5/dsh-memorybear/config.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(STYLE_ID) + "]") === null) {
@@ -469,6 +578,7 @@ window.__ModuleLoader__.load({
 						h("h4", { className: "mb-group-title" }, t("recallGroup")),
 						h(SwitchField, { id: "mb-profile", field: "profile", label: t("profile"), hint: t("profileHint"), f, disabled, t, controller }),
 						h(SwitchField, { id: "mb-recall", field: "recall", label: t("recall"), hint: t("recallHint"), f, disabled, t, controller }),
+						h(SwitchField, { id: "mb-panel", field: "panel", label: t("panelSwitch"), hint: t("panelSwitchHint"), f, disabled, t, controller }),
 						h(Field, { id: "mb-search-switch", label: t("searchSwitch"), hint: t("searchSwitchHint"), state: f.searchSwitch, disabled, t, onReset: () => controller.reset("searchSwitch") },
 							h("select", {
 								id: "mb-search-switch",
@@ -527,7 +637,17 @@ window.__ModuleLoader__.load({
 						f.write.text && mode !== "turn" ? h(Field, {
 							id: "mb-idle", label: t("writeIdleMinutes"), hint: t("flushNote"), state: f.writeIdleMinutes, disabled, t,
 							error: fill(t("invalid"), { min: 0.1 }), onReset: () => controller.reset("writeIdleMinutes")
-						}, textInput("mb-idle", f.writeIdleMinutes, disabled, (v) => controller.edit("writeIdleMinutes", v), { inputMode: "decimal" })) : null),
+						}, textInput("mb-idle", f.writeIdleMinutes, disabled, (v) => controller.edit("writeIdleMinutes", v), { inputMode: "decimal" })) : null,
+						!f.write.text ? null : h(Field, {
+							id: "mb-attachments", label: t("attachments"), hint: t(`attachHint_${f.attachments.text || "images"}`),
+							state: f.attachments, disabled, t, onReset: () => controller.reset("attachments")
+						}, h("select", {
+							id: "mb-attachments",
+							className: "mb-input",
+							value: f.attachments.text || "images",
+							disabled,
+							onChange: (event) => controller.edit("attachments", event.target.value)
+						}, FIELDS.attachments.options.map((m) => h("option", { key: m, value: m }, t(`attach_${m}`)))))),
 					h("div", { className: "mb-actions" },
 						h("button", {
 							type: "button",
@@ -540,6 +660,175 @@ window.__ModuleLoader__.load({
 			};
 		}
 
+		/** Emotion bucket colours (MemoryBear's 10 buckets plus legacy fear/surprise). */
+		const EMOTION_COLOR = {
+			joy: "#f2b233", relief: "#7cc49a", hope: "#5fb0e6", neutral: "#a3a9b3", confusion: "#b59ad8",
+			anxiety: "#e8875b", sadness: "#6f8fd0", loneliness: "#8a7fb8", frustration: "#d9736f", anger: "#d04f4f",
+			fear: "#9b6fb0", surprise: "#e3a3c8"
+		};
+		const emotionColor = (type) => EMOTION_COLOR[type] ?? "#a3a9b3";
+		/** Display name for an emotion code, from the locale (`emo_<code>`), falling back to the code. */
+		const emotionName = (t, type, fallback) => {
+			const key = `emo_${type}`;
+			const text = t(key);
+			return text && text !== key && !text.endsWith(key) ? text : (fallback || type);
+		};
+
+		/**
+		 * Read `/api/memorybear/insights` (Host route; same browser session as the page).
+		 * @returns {Promise<object>} the route payload
+		 */
+		async function loadInsights(signal) {
+			const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+			const res = await fetch(`/api/memorybear/insights?tz=${encodeURIComponent(tz)}`, { credentials: "same-origin", signal });
+			if (res.status === 404) return { disabled: true };
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			return res.json();
+		}
+
+		/** One titled panel section with either its body or the part's error. */
+		function Section({ title, part, t, children }) {
+			return h("section", { className: "mb-sec" },
+				title ? h("h4", { className: "mb-sec-title" }, title) : null,
+				part && !part.ok ? h("p", { className: "mb-error" }, fill(t("panelPartFailed"), { reason: part.error })) : children);
+		}
+
+		/** Collapsible block; closed by default. */
+		function Fold({ label, children }) {
+			return h("details", { className: "mb-fold" }, h("summary", null, label), h("div", { className: "mb-fold-body" }, children));
+		}
+
+		/** One stat tile: small label, big value, sub line. */
+		function Tile({ label, value, unit, sub, dot }) {
+			return h("div", { className: "mb-tile" },
+				h("span", { className: "mb-tile-label" }, label),
+				h("span", { className: "mb-big" }, dot ? h("i", { className: "mb-dot", style: { background: dot } }) : null, value, unit ? h("small", null, unit) : null),
+				sub ? h("span", { className: "mb-tile-sub" }, sub) : null);
+		}
+
+		/** Stacked percentage bar plus legend for one day's emotions. */
+		function EmotionBar({ emotions, t }) {
+			const list = (emotions ?? []).filter((e) => e.percentage > 0);
+			if (!list.length) return h("p", { className: "mb-hint" }, t("panelNoEmotion"));
+			return h(React.Fragment, null,
+				h("div", { className: "mb-bar", role: "img", "aria-label": list.map((e) => `${emotionName(t, e.type, e.display_name)} ${e.percentage}%`).join(", ") },
+					list.map((e) => h("span", { key: e.type, style: { width: `${e.percentage}%`, background: emotionColor(e.type) } }))),
+				h("div", { className: "mb-legend" }, list.map((e) => h("span", { key: e.type },
+					h("i", { className: "mb-dot", style: { background: emotionColor(e.type) } }),
+					`${emotionName(t, e.type, e.display_name)} ${Math.round(e.percentage)}%`))));
+		}
+
+		/**
+		 * Emotion totals over the timeline days, shaped like a day's `emotions`
+		 * rows so `EmotionBar` can draw them.
+		 */
+		function emotionTotals(days) {
+			const counts = new Map();
+			const names = new Map();
+			for (const d of days) for (const e of d.emotions ?? []) {
+				counts.set(e.type, (counts.get(e.type) ?? 0) + (Number(e.count) || 0));
+				if (e.display_name) names.set(e.type, e.display_name);
+			}
+			const total = [...counts.values()].reduce((a, b) => a + b, 0);
+			return [...counts].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1])
+				.map(([type, n]) => ({ type, display_name: names.get(type), count: n, percentage: total ? (n * 100) / total : 0 }));
+		}
+
+		/** The emotion with the largest share on one day, or undefined. */
+		const topEmotion = (day) => [...(day?.emotions ?? [])].filter((e) => e.percentage > 0).sort((a, b) => b.percentage - a.percentage)[0];
+
+		/** Split the profile `description` (`[ISO time] text；...`) into lines, dropping the timestamps. */
+		function descriptionLines(text) {
+			return String(text ?? "").split(/[；;]\s*/).map((s) => s.replace(/^\[[^\]]*\]\s*/, "").trim()).filter(Boolean);
+		}
+
+		/** Right-sidebar 记忆 tab body: profile (metadata), recent emotions and emotion tags. */
+		function MemoryPanel({ t }) {
+			const [state, setState] = React.useState({ loading: true });
+			const [nonce, setNonce] = React.useState(0);
+			React.useEffect(() => {
+				const ac = new AbortController();
+				setState((s) => ({ ...s, loading: true }));
+				loadInsights(ac.signal).then(
+					(data) => setState({ loading: false, data, at: new Date() }),
+					(error) => { if (!ac.signal.aborted) setState({ loading: false, error: String(error?.message ?? error) }); });
+				return () => ac.abort();
+			}, [nonce]);
+			const { loading, data, error, at } = state;
+			const bar = h("div", { className: "mb-panel-bar" },
+				h("p", { className: "mb-hint" }, loading ? t("loading") : at ? fill(t("panelUpdated"), { time: at.toLocaleTimeString() }) : ""),
+				h("button", { type: "button", className: "mb-refresh", disabled: loading, onClick: () => setNonce((n) => n + 1) }, t("panelRefresh")));
+			if (error) return h("div", { className: "mb-panel" }, bar, h("p", { className: "mb-error" }, fill(t("panelFailed"), { reason: error })));
+			if (!data) return h("div", { className: "mb-panel" }, bar);
+			if (data.disabled) return h("div", { className: "mb-panel" }, bar, h("p", { className: "mb-hint" }, t("panelDisabled")));
+			if (!data.configured) return h("div", { className: "mb-panel" }, bar, h("p", { className: "mb-hint" }, fill(t("panelUnconfigured"), { missing: (data.missing ?? []).join(", ") })));
+			const profile = data.profile?.data;
+			const overview = data.overview?.data;
+			const days = data.timeline?.data?.items ?? [];
+			const memory = data.memory?.data;
+			const latest = days[0];
+			const top = topEmotion(latest);
+			const totals = emotionTotals(days);
+			const desc = profile ? descriptionLines(profile.description) : [];
+			const fields = profile?.fields ?? [];
+			// The first field shows open; the rest sit behind one fold.
+			const field = (f) => h("div", { key: f.key, className: "mb-kv" },
+				h("b", null, t(`pf_${f.key}`) || f.label),
+				h("ul", null, f.items.map((item, i) => h("li", { key: i }, item))));
+			const restCount = fields.length - 1 + (desc.length ? 1 : 0);
+			return h("div", { className: "mb-panel" }, bar,
+				h("div", { className: "mb-tiles" },
+					!data.memory?.ok ? h(Tile, { label: t("panelTitle"), value: "—", sub: data.memory?.error })
+						: h(Tile, { label: t("panelTitle"), value: memory ? memory.total : "—", unit: memory ? t("panelMemoryUnit") : null, sub: memory ? fill(t("panelMemoryActive"), { active: memory.active }) : t("panelEmpty") }),
+					h(Tile, {
+						label: t("panelLatest"),
+						value: top ? emotionName(t, top.type, top.display_name) : "—",
+						dot: top ? emotionColor(top.type) : null,
+						sub: latest ? fill(t("panelLatestOn"), { date: String(latest.date).slice(5), n: latest.dialogue_count }) : t("panelEmpty")
+					})),
+				h(Section, { title: t("panelMemoryTags"), part: data.memory, t },
+					!memory?.tags?.length ? h("p", { className: "mb-hint" }, t("panelEmpty"))
+						: h("div", { className: "mb-chips" }, memory.tags.map((tag) => h("span", { key: tag, className: "mb-chip" }, tag)))),
+				h(Section, { title: days.length ? fill(t("panelEmotionDays"), { n: days.length }) : t("panelTimeline"), part: data.timeline, t },
+					!days.length ? h("p", { className: "mb-hint" }, t("panelEmpty")) : h(React.Fragment, null,
+						h(EmotionBar, { emotions: totals, t }),
+						data.overview?.ok && overview?.conclusion && overview.data_quality !== "no_data"
+							? h("p", { className: "mb-note" }, h("b", null, overview.conclusion.title), overview.conclusion.message ? ` · ${overview.conclusion.message}` : "") : null,
+						h(Fold, { label: t("panelByDay") }, days.map((d) => h("div", { key: d.date, className: "mb-day" },
+							h("div", { className: "mb-day-head" }, h("span", null, d.date), h("span", null, fill(t("panelDialogues"), { n: d.dialogue_count }))),
+							h(EmotionBar, { emotions: d.emotions, t })))))),
+				h(Section, { title: t("panelProfile"), part: data.profile, t },
+					!profile ? h("p", { className: "mb-hint" }, t("panelEmpty")) : h(React.Fragment, null,
+						profile.summary ? h("p", { className: "mb-summary" }, profile.summary) : null,
+						fields[0] ? field(fields[0]) : null,
+						restCount > 0 ? h(Fold, { label: fill(t("panelMore"), { n: restCount }) },
+							fields.slice(1).map(field),
+							desc.length ? h("ul", { className: "mb-hint mb-desc" }, desc.map((line, i) => h("li", { key: i }, line))) : null) : null)));
+		}
+
+		/** Tab type id; also the slot key its body registers under. */
+		const PANEL_ID = "@kesun5/dsh-memorybear/panel";
+
+		/**
+		 * Register the 记忆 tab in the right sidebar (guide entry + body).
+		 * @param ctx - client Context holding `slots` and `sidebarRightTabs`.
+		 */
+		function applyPanel(ctx) {
+			const t = ctx.locale.bind(NS);
+			ctx.effect(() => ctx.sidebarRightTabs.register({
+				id: PANEL_ID,
+				kind: "memorybear",
+				priority: "extension",
+				title: () => t("panelTitle"),
+				guide: [{ id: "open", order: 60, title: () => t("panelTitle"), description: () => t("panelGuide") }]
+			}), "dsh-memorybear: panel type");
+			ctx.effect(() => ctx.slots.inject("sidebar.right.pane.tab", () => ctx.slots.register({
+				name: "sidebar.right.pane.tab",
+				key: PANEL_ID,
+				locale: NS
+			}, MemoryPanel)), "dsh-memorybear: panel body");
+		}
+
 		/** Required client services. */
 		const inject = ["slots", "locale", "remote", "remote.credentials", "configForms"];
 
@@ -549,6 +838,8 @@ window.__ModuleLoader__.load({
 		 */
 		function apply(ctx) {
 			ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-memorybear: dictionaries");
+			// Optional: the right sidebar exists only in compositions that mount it.
+			ctx.inject(["sidebarRightTabs"], (pctx) => applyPanel(pctx));
 			const controller = new ConfigController(ctx, ctx.configForms.get(SETTINGS_NS));
 			ctx.effect(() => () => controller.dispose(), "dsh-memorybear: form subscription");
 			ctx.effect(() => ctx.remote.$on("credentials/reference-updated", (ref) => {
