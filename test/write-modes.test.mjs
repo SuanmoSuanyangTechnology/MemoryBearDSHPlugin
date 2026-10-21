@@ -98,6 +98,18 @@ function fakeHost(user = {}) {
             emit('turn/end', { reason: { kind: 'completed' } });
         },
         setUser(layer) { compose(layer); handlers.get('loader/volatile-update')?.(); },
+        /**
+         * Run the pre-step hook for step 1 of a turn whose user text is `text`.
+         * `history` is the session event log ending with the current turn.
+         */
+        async preStep(text, history = []) {
+            const msg = { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text }] };
+            const s = { ...session, seq: history.length, eventAt: (i) => history[i] };
+            return handlers.get('agent/pre-step')(
+                { agent: { session: s }, step: 1, signal: new AbortController().signal },
+                async () => ({ kind: 'continue', messages: [msg] }),
+            );
+        },
         disposeSession: () => handlers.get('session/disposed')(session),
         disposePlugin: () => effects.forEach((d) => d?.()),
         provideTools(tools) { toolsService = tools; startToolsFiber(); },
@@ -327,6 +339,9 @@ await run('insights route: profile, emotion overview/timeline/tags with browser 
     assert.equal(body.overview.data.conclusion.title, '情绪回暖');
     assert.equal(body.timeline.data.items.length, 2);
     assert.deepEqual(body.memory.data, { tags: ['柯基', '冲浪'], total: 42, active: 30, limit: 5000 });
+    // Communities: only Community nodes, largest first, the `用户` hub dropped.
+    assert.deepEqual(body.communities.data.map((c) => [c.name, c.members]), [['柯基日常', 9], ['冲浪计划', 2]]);
+    assert.deepEqual(body.communities.data[0].entities, ['团子', '靛蓝色项圈', '公园', '狗粮', '兽医', '散步']);
     assert.equal(body.tags, undefined);
     const log = readFileSync(process.env.MOCK_LOG, 'utf8');
     assert.match(log, /query_emotion_timeline\?end_user_id=u-1&sort=desc&page=1&pagesize=14/);
@@ -342,6 +357,46 @@ await run('insights route: profile, emotion overview/timeline/tags with browser 
     assert.deepEqual(un, { configured: false, missing: ['baseURL', 'endUserId'] });
     // Headless (no connection service): no route, nothing breaks.
     assert.equal(fakeHost().route(plugin.INSIGHTS_PATH), undefined);
+});
+
+await run('preferences: per-turn recall with other_id lookup and prior-turn context', async () => {
+    const h = fakeHost({ layer: { recall: false, profile: false } });
+    const ev = (type, data) => ({ type, data });
+    const userMsg = (text) => ({ role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text }] });
+    const history = [
+        ev('turn/start'), ev('user/message', userMsg('先建个 Python 项目')),
+        ev('assistant/message', { message: { content: [{ type: 'text', text: '(tool step)' }] } }),
+        ev('assistant/message', { message: { content: [{ type: 'text', text: '项目建好了' }] } }),
+        ev('turn/end', { reason: { kind: 'completed' } }),
+        ev('turn/start'), ev('user/message', userMsg('再帮我安装依赖')),
+    ];
+    const out = await h.preStep('再帮我安装依赖', history);
+    const injected = out.messages.filter((m) => m.source.kind === 'memorybear-memory');
+    assert.equal(injected.length, 1);
+    assert.equal(injected[0].source.sections[0].name, 'memorybear-memory/preferences');
+    assert.match(injected[0].content[0].text, /安装 Python 依赖用 uv，不要用 pip \(updated 2026-10-20\)/);
+    const reqs = readFileSync(log, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    const pref = reqs.find((r) => r.path === '/v1/memory/preference/recall');
+    assert.equal(pref.otherId, 'other-u-1');
+    assert.deepEqual(pref.body.context_messages, [
+        { role: 'user', content: '先建个 Python 项目' },
+        { role: 'assistant', content: '项目建好了' },
+    ]);
+    // other_id is cached: a second turn does not look it up again.
+    const none = await h.preStep('今天天气怎么样');
+    assert.equal(none.messages.length, 1);
+    const lookups = readFileSync(log, 'utf8').split('\n').filter((l) => l.includes('/v1/dashboard/end_users'));
+    assert.equal(lookups.length, 1);
+    // Off: no preference call at all.
+    reset();
+    h.setUser({ recall: false, profile: false, preferences: false });
+    await h.preStep('再帮我安装依赖');
+    assert.equal(readFileSync(log, 'utf8').trim(), '');
+    // Explicit override skips the lookup; a wrong id fails soft (403 -> no injection).
+    const o = fakeHost({ layer: { recall: false, profile: false, endUserOtherId: 'bogus' } });
+    const soft = await o.preStep('再帮我安装依赖');
+    assert.equal(soft.messages.length, 1);
+    assert.ok(!readFileSync(log, 'utf8').includes('/v1/dashboard/end_users'));
 });
 
 console.log('all write-mode tests passed');

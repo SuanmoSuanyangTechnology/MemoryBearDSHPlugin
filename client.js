@@ -38,6 +38,8 @@ window.__ModuleLoader__.load({
 		const FIELDS = {
 			profile: { kind: "bool" },
 			recall: { kind: "bool" },
+			preferences: { kind: "bool" },
+			endUserOtherId: { kind: "text" },
 			searchSwitch: { kind: "select", options: SEARCH_MODES },
 			toolSearchSwitches: { kind: "multi", options: SEARCH_MODES },
 			write: { kind: "bool" },
@@ -60,6 +62,10 @@ window.__ModuleLoader__.load({
 			profileHint: "每个会话第一轮调一次 meta，把画像放进对话；画像为空时不加。",
 			recall: "每轮自动召回",
 			recallHint: "每轮开头按用户原话查一次记忆。关掉时只靠模型主动调 memory_search。",
+			preferences: "每轮按任务召回偏好",
+			preferencesHint: "每轮开头让偏好引擎挑出跟这轮任务相关的偏好（如“装依赖用 uv”），放进对话。服务端记忆配置要开启偏好引擎才会有数据。",
+			endUserOtherId: "end_user other_id",
+			endUserOtherIdHint: "偏好接口按 other_id 认人。留空时自动按 end_user ID 查出来。",
 			searchSwitch: "自动召回档位",
 			searchSwitchHint: "自动召回用这一档；也是 memory_search 不指定档位时的默认值。",
 			toolSearchSwitches: "memory_search 可选档位",
@@ -101,8 +107,8 @@ window.__ModuleLoader__.load({
 			attachHint_all: "图片和 MemoryBear 能解析的文件（文档、音频、视频）都上传；其他类型和超过大小上限（默认 20MB）的跳过。",
 			panelTitle: "记忆",
 			panelSwitch: "右侧栏记忆面板",
-			panelSwitchHint: "在会话右侧栏加一个“记忆”标签页，显示记忆数、记忆标签、情绪记录和用户画像。关掉后标签页显示已关闭。",
-			panelGuide: "MemoryBear 里的记忆数、记忆标签、近期情绪和用户画像",
+			panelSwitchHint: "在会话右侧栏加一个“记忆”标签页，显示记忆数、记忆标签、情绪记录、用户画像和记忆主题。关掉后标签页显示已关闭。",
+			panelGuide: "MemoryBear 里的记忆数、记忆标签、近期情绪、用户画像和记忆主题",
 			panelRefresh: "刷新",
 			panelUpdated: "{time} 更新",
 			panelFailed: "记忆加载失败：{reason}",
@@ -122,6 +128,10 @@ window.__ModuleLoader__.load({
 			panelMore: "展开其余 {n} 项",
 			panelDialogues: "{n} 段对话",
 			panelNoEmotion: "没有记录到情绪",
+			panelTopics: "记忆主题",
+			panelTopicMembers: "{n} 个实体",
+			panelTopicMore: "还有 {n} 个",
+			panelTopicUnnamed: "未命名主题",
 			pf_core_facts: "核心事实", pf_traits: "性格特点", pf_interests: "兴趣", pf_goals: "目标",
 			pf_beliefs_or_stances: "观点立场", pf_relations: "人际关系", pf_event_timeline: "事件时间线", pf_anchors: "关键锚点",
 			emo_joy: "喜悦", emo_relief: "释然", emo_hope: "希望", emo_neutral: "平静", emo_confusion: "困惑", emo_anxiety: "焦虑",
@@ -145,6 +155,10 @@ window.__ModuleLoader__.load({
 			profileHint: "Calls meta once per session and adds the profile to the conversation; skipped when empty.",
 			recall: "Recall automatically every turn",
 			recallHint: "Queries memory with the user's words at the start of each turn. When off, only memory_search calls by the model read memory.",
+			preferences: "Recall task preferences every turn",
+			preferencesHint: "At the start of each turn the preference engine picks the user's preferences that apply to this task (e.g. \"install deps with uv\") and adds them to the conversation. Needs the preference engine enabled in the server memory config.",
+			endUserOtherId: "end_user other_id",
+			endUserOtherIdHint: "The preference API identifies users by other_id. Leave empty to look it up from the end_user ID.",
 			searchSwitch: "Automatic recall mode",
 			searchSwitchHint: "Used by automatic recall, and by memory_search when the model names no mode.",
 			toolSearchSwitches: "Modes memory_search may use",
@@ -186,8 +200,8 @@ window.__ModuleLoader__.load({
 			attachHint_all: "Images and files MemoryBear can parse (documents, audio, video) are uploaded; other types and anything over the size cap (20 MB by default) are skipped.",
 			panelTitle: "Memory",
 			panelSwitch: "Memory panel in the right sidebar",
-			panelSwitchHint: "Adds a Memory tab to the session's right sidebar with memory counts, memory tags, emotion history and the user profile. When off, the tab says it is turned off.",
-			panelGuide: "Memory counts, memory tags, recent emotions and profile from MemoryBear",
+			panelSwitchHint: "Adds a Memory tab to the session's right sidebar with memory counts, memory tags, emotion history, the user profile and memory topics. When off, the tab says it is turned off.",
+			panelGuide: "Memory counts, memory tags, recent emotions, profile and memory topics from MemoryBear",
 			panelRefresh: "Refresh",
 			panelUpdated: "Updated {time}",
 			panelFailed: "Could not load memory: {reason}",
@@ -207,6 +221,10 @@ window.__ModuleLoader__.load({
 			panelMore: "Show {n} more",
 			panelDialogues: "{n} dialogues",
 			panelNoEmotion: "No emotion recorded",
+			panelTopics: "Memory topics",
+			panelTopicMembers: "{n} entities",
+			panelTopicMore: "{n} more",
+			panelTopicUnnamed: "Untitled topic",
 			pf_core_facts: "Core facts", pf_traits: "Traits", pf_interests: "Interests", pf_goals: "Goals",
 			pf_beliefs_or_stances: "Beliefs / stances", pf_relations: "Relations", pf_event_timeline: "Event timeline", pf_anchors: "Anchors",
 			emo_joy: "Joy", emo_relief: "Relief", emo_hope: "Hope", emo_neutral: "Neutral", emo_confusion: "Confusion", emo_anxiety: "Anxiety",
@@ -508,7 +526,16 @@ window.__ModuleLoader__.load({
 			".mb-day .mb-bar{height:6px}",
 			".mb-bar span{display:block;height:100%}",
 			".mb-legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--dsw-alias-label-secondary)}",
-			".mb-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}"
+			".mb-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}",
+			// Topic (community) cards
+			".mb-comm{display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:12px;background:var(--dsw-alias-bg-layer-2)}",
+			".mb-comm-head{display:flex;align-items:baseline;gap:8px;min-width:0}",
+			".mb-comm-name{font-weight:600;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+			".mb-comm-count{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary)}",
+			".mb-comm-sum{margin:0;font-size:12px;color:var(--dsw-alias-label-secondary)}",
+			".mb-comm .mb-chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-sizing:border-box}",
+			".mb-more{align-self:flex-start;font:inherit;font-size:12px;padding:0;border:0;background:none;color:var(--dsw-alias-label-secondary);cursor:pointer}",
+			".mb-more:hover{color:var(--dsw-alias-label-primary)}"
 		].join("");
 		const STYLE_ID = "@kesun5/dsh-memorybear/config.css";
 		if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(STYLE_ID) + "]") === null) {
@@ -578,6 +605,7 @@ window.__ModuleLoader__.load({
 						h("h4", { className: "mb-group-title" }, t("recallGroup")),
 						h(SwitchField, { id: "mb-profile", field: "profile", label: t("profile"), hint: t("profileHint"), f, disabled, t, controller }),
 						h(SwitchField, { id: "mb-recall", field: "recall", label: t("recall"), hint: t("recallHint"), f, disabled, t, controller }),
+						h(SwitchField, { id: "mb-preferences", field: "preferences", label: t("preferences"), hint: t("preferencesHint"), f, disabled, t, controller }),
 						h(SwitchField, { id: "mb-panel", field: "panel", label: t("panelSwitch"), hint: t("panelSwitchHint"), f, disabled, t, controller }),
 						h(Field, { id: "mb-search-switch", label: t("searchSwitch"), hint: t("searchSwitchHint"), state: f.searchSwitch, disabled, t, onReset: () => controller.reset("searchSwitch") },
 							h("select", {
@@ -601,6 +629,8 @@ window.__ModuleLoader__.load({
 							textInput("mb-base-url", f.baseURL, disabled, (v) => controller.edit("baseURL", v), { placeholder: "https://<host>/v1" })),
 						h(Field, { id: "mb-end-user", label: t("endUserId"), hint: t("endUserIdHint"), state: f.endUserId, disabled, t, onReset: () => controller.reset("endUserId") },
 							textInput("mb-end-user", f.endUserId, disabled, (v) => controller.edit("endUserId", v))),
+						h(Field, { id: "mb-end-user-other", label: t("endUserOtherId"), hint: t("endUserOtherIdHint"), state: f.endUserOtherId, disabled, t, onReset: () => controller.reset("endUserOtherId") },
+							textInput("mb-end-user-other", f.endUserOtherId, disabled, (v) => controller.edit("endUserOtherId", v))),
 						h(Field, {
 							id: "mb-api-key",
 							label: t("apiKey"),
@@ -742,6 +772,23 @@ window.__ModuleLoader__.load({
 			return String(text ?? "").split(/[；;]\s*/).map((s) => s.replace(/^\[[^\]]*\]\s*/, "").trim()).filter(Boolean);
 		}
 
+		/** Entity chips shown before a card's "show more". */
+		const COMMUNITY_CHIPS = 4;
+
+		/** One topic card: name, size, summary, core entities (first few, rest on demand). */
+		function CommunityCard({ c, t }) {
+			const [open, setOpen] = React.useState(false);
+			const shown = open ? c.entities : c.entities.slice(0, COMMUNITY_CHIPS);
+			const rest = c.entities.length - shown.length;
+			return h("div", { className: "mb-comm" },
+				h("div", { className: "mb-comm-head" },
+					h("span", { className: "mb-comm-name", title: c.name }, c.name || t("panelTopicUnnamed")),
+					h("span", { className: "mb-comm-count" }, fill(t("panelTopicMembers"), { n: c.members }))),
+				c.summary ? h("p", { className: "mb-comm-sum" }, c.summary) : null,
+				shown.length ? h("div", { className: "mb-chips" }, shown.map((e) => h("span", { key: e, className: "mb-chip", title: e }, e))) : null,
+				rest > 0 ? h("button", { type: "button", className: "mb-more", onClick: () => setOpen(true) }, fill(t("panelTopicMore"), { n: rest })) : null);
+		}
+
 		/** Right-sidebar 记忆 tab body: profile (metadata), recent emotions and emotion tags. */
 		function MemoryPanel({ t }) {
 			const [state, setState] = React.useState({ loading: true });
@@ -766,6 +813,7 @@ window.__ModuleLoader__.load({
 			const overview = data.overview?.data;
 			const days = data.timeline?.data?.items ?? [];
 			const memory = data.memory?.data;
+			const communities = data.communities?.data ?? [];
 			const latest = days[0];
 			const top = topEmotion(latest);
 			const totals = emotionTotals(days);
@@ -803,7 +851,10 @@ window.__ModuleLoader__.load({
 						fields[0] ? field(fields[0]) : null,
 						restCount > 0 ? h(Fold, { label: fill(t("panelMore"), { n: restCount }) },
 							fields.slice(1).map(field),
-							desc.length ? h("ul", { className: "mb-hint mb-desc" }, desc.map((line, i) => h("li", { key: i }, line))) : null) : null)));
+							desc.length ? h("ul", { className: "mb-hint mb-desc" }, desc.map((line, i) => h("li", { key: i }, line))) : null) : null)),
+				h(Section, { title: t("panelTopics"), part: data.communities, t },
+					!communities.length ? h("p", { className: "mb-hint" }, t("panelEmpty"))
+						: communities.map((c) => h(CommunityCard, { key: c.id, c, t }))));
 		}
 
 		/** Tab type id; also the slot key its body registers under. */

@@ -41,6 +41,7 @@ createServer((req, res) => {
             path: req.url,
             hasBearer: /^Bearer \S+/.test(req.headers.authorization ?? ''),
             language: req.headers['x-language-type'] ?? null,
+            otherId: req.headers['x-end-user-other-id'] ?? null,
             body,
         })}\n`);
         if (!/^Bearer \S+/.test(req.headers.authorization ?? '')) {
@@ -75,8 +76,23 @@ createServer((req, res) => {
             const kw = new URL(req.url, 'http://x').searchParams.get('keyword');
             return reply(res, 200, { code: 0, msg: 'OK', data: { items: [
                 { end_user_id: `${kw}-other`, tags: ['别人的'], memory_num: { total: 1, active_count: 1, memory_limit: 5000 } },
-                { end_user_id: kw, tags: ['柯基', '冲浪'], memory_num: { total: 42, active_count: 30, memory_limit: 5000 } },
+                { end_user_id: kw, end_user: { id: kw, other_id: `other-${kw}` }, tags: ['柯基', '冲浪'], memory_num: { total: 42, active_count: 30, memory_limit: 5000 } },
             ], page: { page: 1, pagesize: 10, total: 2, hasnext: false } }, error: '' });
+        }
+        if (req.method === 'GET' && path === '/v1/memory/analytics/community_graph') {
+            return reply(res, 200, { code: 0, msg: 'OK', data: { nodes: [
+                { id: 'n1', label: 'ExtractedEntity', properties: { name: '团子' } },
+                { id: 'c2', label: 'Community', properties: { community_id: 'small', name: '冲浪计划', summary: '用户想学冲浪', member_count: 2, core_entities: ['冲浪'] } },
+                { id: 'c1', label: 'Community', properties: { community_id: 'big', name: '柯基日常', summary: '用户和柯基团子的生活', member_count: 9, core_entities: ['用户', '团子', '靛蓝色项圈', '公园', '狗粮', '兽医', '散步'] } },
+            ], edges: [], statistics: { total_nodes: 3 } }, error: '' });
+        }
+        if (req.method === 'POST' && path === '/v1/memory/preference/recall') {
+            const other = req.headers['x-end-user-other-id'] ?? '';
+            if (!other.startsWith('other-')) return reply(res, 403, { code: 6010, msg: '无权访问该偏好资源', data: {}, error: '' });
+            const preferences = /依赖|安装|install/.test(body?.current_user_message ?? '')
+                ? [{ preference_text: '安装 Python 依赖用 uv，不要用 pip', updated_at: '2026-10-20T08:00:00Z' }]
+                : [];
+            return reply(res, 200, { code: 0, msg: '查询成功', data: { preferences, count: preferences.length }, error: '' });
         }
         if (req.method === 'POST' && path === '/v1/memory/emotion-memory/tags') {
             return reply(res, 200, { code: 0, msg: 'OK', data: { tags: [

@@ -3,6 +3,7 @@
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）接入 MemoryBear 长期记忆的插件。
 
 - **召回**：会话第一轮加载 MemoryBear 用户画像（`meta`），也可以每轮自动召回一次（`recall: true`）。
+- **偏好**：每轮按这轮的任务调用 MemoryBear 偏好引擎，把相关的偏好（比如"装依赖用 uv"）注入给模型（`preferences: true`）。服务端记忆配置要开启偏好引擎才有数据。
 - **工具**：`memory_search`，由模型按需调用，档位（express / quick / normal / deep）也由模型选。
 - **写入**：一轮对话完成后，把用户原话和助手最后一条回复写入 MemoryBear。可以每轮写、每 N 轮写，或者会话空闲后再写。
 - **网页配置页**：在 dsh 网页版的 Plugins 页里可以改配置。API key 存在 dsh 的凭据库里，不写进配置文件。
@@ -19,7 +20,9 @@
 | `POST {baseURL}/memory/write` | 写入对话（只写用户原话和助手最后一条回复，附件以 `files` 字段带上） |
 | `POST {baseURL}/memory/files/upload` | 上传用户消息里的图片/文件（`attachments` 不为 `none` 时） |
 | `GET {baseURL}/memory/emotion-memory/query_emotion_overview`、`GET .../query_emotion_timeline` | 右侧边栏"记忆"标签页的近期情绪、情绪记录（`panel` 开启时） |
-| `GET {baseURL}/dashboard/end_users?keyword=<endUserId>` | 右侧边栏"记忆"标签页的记忆标签和记忆条数（按 `endUserId` 精确挑出本人那一行；`panel` 开启时） |
+| `GET {baseURL}/dashboard/end_users?keyword=<endUserId>` | 右侧边栏"记忆"标签页的记忆标签和记忆条数（按 `endUserId` 精确挑出本人那一行；`panel` 开启时）；没填 `endUserOtherId` 时也用它查本人的 `other_id` |
+| `POST {baseURL}/memory/preference/recall` | 每轮偏好召回，请求头 `X-End-User-Other-Id` 带本人 `other_id`（`preferences` 开启时） |
+| `GET {baseURL}/memory/analytics/community_graph` | 右侧边栏"记忆"标签页的记忆主题（服务端只取社区节点的名字、摘要、实体数和核心实体；`panel` 开启时） |
 
 右侧边栏"记忆"标签页的数据由插件在 dsh 服务端注册的 `GET /api/memorybear/insights` 转发，dsh 负责登录校验，API key 不会发到浏览器。
 
@@ -30,17 +33,17 @@
 ## 安装
 
 ```sh
-dsh plugin --profile <你的 profile> add @kesun5/dsh-memorybear@0.1.0-alpha.4
+dsh plugin --profile <你的 profile> add @kesun5/dsh-memorybear@0.1.0-alpha.5
 ```
 
-桌面端在插件页的"包名或地址"里填同样的 `@kesun5/dsh-memorybear@0.1.0-alpha.4`。
+桌面端在插件页的"包名或地址"里填同样的 `@kesun5/dsh-memorybear@0.1.0-alpha.5`。
 
 - 一律写明版本号：pnpm 11 有新版冷却期（`minimumReleaseAge`），不带版本号时刚发布的版本可能被跳过，装成旧版。
 - `add` 会自动把插件加进 profile 的 `dsh.profile.bundles`，不用手动改 `package.json`。
 - `add` 底层是 PATH 里的 pnpm（npm 装的 dsh 不自带）。实测 pnpm 11 可用；没有 pnpm 时执行 `npm i -g pnpm@11`。
 - 从 alpha.1/alpha.2 升级：这两版依赖 `@deepseek-ai/dsh-tools`，会在 profile 的 `node_modules` 里多装一份，导致该 profile 所有工具调用报 `Cannot read properties of undefined (reading 'prepare')`，或插件卡在"等待依赖 tools"。alpha.3 去掉了这个依赖。升级后若 `<profile>/node_modules/@deepseek-ai/dsh-tools` 还在，先卸载插件再装 alpha.3，然后完全退出 dsh / 桌面端（Cmd+Q）再打开。
 
-也可以用 git 地址（`github:keeees/MemoryBearDSHPlugin#v0.1.0-alpha.4`）或 tgz 文件安装。本地开发时可以用 `link:` 依赖指向源码目录。
+也可以用 git 地址（`github:keeees/MemoryBearDSHPlugin#v0.1.0-alpha.5`）或 tgz 文件安装。本地开发时可以用 `link:` 依赖指向源码目录。
 
 ## 配置
 
@@ -72,6 +75,10 @@ dsh plugin --profile <你的 profile> add @kesun5/dsh-memorybear@0.1.0-alpha.4
 | `apiKeyEnv` | `MEMORYBEAR_API_KEY` | API key 的凭据引用 |
 | `profile` | `false` | 会话首轮加载 `meta` 画像 |
 | `recall` | `true` | 每轮自动召回 |
+| `preferences` | `true` | 每轮按任务召回偏好 |
+| `endUserOtherId` | 空 | 偏好接口认人用的 end_user `other_id`；留空时按 `endUserId` 自动查 |
+| `preferenceContextMessages` | `4` | 偏好召回带上的前几条消息（服务端也会截断） |
+| `preferenceTimeoutMs` | `8000` | 偏好召回超时，和记忆召回同时进行 |
 | `searchSwitch` | `express` | 自动召回用的档位 |
 | `tool` | `true` | 注册 `memory_search` |
 | `toolSearchSwitches` | `[express, quick, normal, deep]` | 模型可选的档位 |
@@ -82,7 +89,7 @@ dsh plugin --profile <你的 profile> add @kesun5/dsh-memorybear@0.1.0-alpha.4
 | `writeIdleMinutes` | `10` | 空闲多久算空闲 |
 | `attachments` | `images` | 附件写入：`none` 不写 / `images` 只写图片 / `all` 图片加 MemoryBear 能解析的文档、音频、视频 |
 | `maxAttachmentMB` | `20` | 单个附件超过这个大小就跳过 |
-| `panel` | `true` | 右侧边栏"记忆"标签页（记忆数、记忆标签、近期情绪、情绪记录、画像） |
+| `panel` | `true` | 右侧边栏"记忆"标签页（记忆数、记忆标签、近期情绪、情绪记录、画像、记忆主题） |
 | `panelTimeoutMs` | `20000` | 标签页每个数据请求的超时 |
 | `recallTimeoutMs` / `toolTimeoutMs` / `writeTimeoutMs` | `8000` / `30000` / `15000` | 各请求超时 |
 | `maxRecallChars` | `4000` | 注入的记忆文本上限 |

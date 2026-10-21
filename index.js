@@ -112,6 +112,18 @@ export const Config = z.object({
     searchSwitch: z.string().default('express').volatile(),
     /** Per-turn automatic recall with `searchSwitch` (noisy for unrelated questions). */
     recall: z.boolean().default(true).volatile(),
+    /**
+     * Per-turn preference-engine recall (`/memory/preference/recall`): the
+     * user's standing preferences that apply to this turn's task. Empty until
+     * the server config has `preference_engine_enabled`.
+     */
+    preferences: z.boolean().default(true).volatile(),
+    /** end_user `other_id` the preference API keys on; empty = look it up via `/dashboard/end_users`. */
+    endUserOtherId: z.string().default('').volatile(),
+    /** Earlier messages sent with the preference request as routing context (the server also caps it). */
+    preferenceContextMessages: z.number().step(1).min(0).default(4).volatile(),
+    /** Budget for one preference recall; it runs alongside memory recall. */
+    preferenceTimeoutMs: z.number().step(1).min(1).default(8_000).volatile(),
     /** Load the MemoryBear `meta` user profile once, on a session's first turn. */
     profile: z.boolean().default(false).volatile(),
     write: z.boolean().default(true).volatile(),
@@ -296,6 +308,9 @@ function pluginUserMessage(text, section = name) {
  * @param {(config: ReturnType<typeof Config>) => Promise<string | undefined>} resolveKey
  */
 function createClient(getConfig, resolveKey) {
+    /** `baseURL|endUserId` -> resolved `other_id`. */
+    const otherIds = new Map();
+
     /**
      * POST a JSON body and unwrap the `{code, msg, data}` envelope.
      * @param {ReturnType<typeof Config>} config - config snapshot for this call
@@ -392,6 +407,49 @@ function createClient(getConfig, resolveKey) {
             }, { timeoutMs: config.recallTimeoutMs, signal });
             return renderProfile(data);
         },
+        /**
+         * The end_user `other_id` the preference API identifies the caller by:
+         * the configured override, else this user's row in `/dashboard/end_users`
+         * (cached per base URL + end_user once found).
+         * @param {AbortSignal} [signal]
+         * @returns {Promise<string>}
+         * @throws {Error} when the row or its `other_id` is missing
+         */
+        async otherId(signal) {
+            const config = getConfig();
+            const override = config.endUserOtherId.trim();
+            if (override) return override;
+            const cacheKey = `${config.baseURL}|${config.endUserId}`;
+            const hit = otherIds.get(cacheKey);
+            if (hit) return hit;
+            const data = await get(config, '/dashboard/end_users', { keyword: config.endUserId }, {
+                timeoutMs: config.preferenceTimeoutMs, signal,
+            });
+            const value = endUserOtherId(data, config.endUserId);
+            if (!value) throw new Error(`no other_id for end_user ${config.endUserId}; set endUserOtherId`);
+            otherIds.set(cacheKey, value);
+            return value;
+        },
+        /**
+         * Preferences relevant to the current task, from the preference engine.
+         * @param {string} message - this turn's user text
+         * @param {Array<{role: 'user' | 'assistant', content: string}>} context - earlier messages, oldest first
+         * @param {AbortSignal} [signal]
+         * @returns {Promise<Array<{preference_text: string, updated_at?: string}>>}
+         */
+        async preferences(message, context, signal) {
+            const config = getConfig();
+            const otherId = await this.otherId(signal);
+            const data = await post(config, '/memory/preference/recall', {
+                current_user_message: message.slice(0, PREFERENCE_MESSAGE_MAX_CHARS),
+                context_messages: context,
+            }, {
+                timeoutMs: config.preferenceTimeoutMs, signal,
+                headers: { 'X-End-User-Other-Id': otherId },
+            });
+            return (Array.isArray(data?.preferences) ? data.preferences : [])
+                .filter((p) => typeof p?.preference_text === 'string' && p.preference_text.trim());
+        },
         /** @returns {Promise<any>} `{task_ids}` on the Neo4j path */
         async write(messages) {
             const config = getConfig();
@@ -425,7 +483,7 @@ function createClient(getConfig, resolveKey) {
          * settles on its own, so one failing endpoint (e.g. an older server
          * without the emotion API) leaves the others visible.
          * @param {string} timeZone - IANA zone the emotion days are cut in
-         * @returns {Promise<{profile: object, overview: object, timeline: object, memory: object}>}
+         * @returns {Promise<{profile: object, overview: object, timeline: object, memory: object, communities: object}>}
          *     each `{ ok: true, data }` or `{ ok: false, error }`
          */
         async insights(timeZone) {
@@ -441,6 +499,8 @@ function createClient(getConfig, resolveKey) {
                 timeline: get(config, '/memory/emotion-memory/query_emotion_timeline', { ...user, sort: 'desc', page: 1, pagesize: 14 }, { ...opts, headers: emotionHeaders }),
                 memory: get(config, '/dashboard/end_users', { keyword: config.endUserId }, { ...opts, headers: lang })
                     .then((data) => memorySummary(data, config.endUserId)),
+                communities: get(config, '/memory/analytics/community_graph', user, { ...opts, headers: lang })
+                    .then(communityCards),
             };
             const keys = Object.keys(parts);
             const settled = await Promise.allSettled(Object.values(parts));
@@ -449,6 +509,91 @@ function createClient(getConfig, resolveKey) {
                 : { ok: false, error: String(r.reason?.message ?? r.reason) }]));
         },
     };
+}
+
+/** Core entities kept per community card. */
+const COMMUNITY_ENTITIES_MAX = 12;
+
+/**
+ * Topic cards from `/memory/analytics/community_graph`: only the `Community`
+ * nodes, largest first. Entity nodes and edges are dropped server-side of the
+ * panel route, so the browser gets a few hundred bytes, not the whole graph.
+ * @param {any} data - envelope `data`: `{nodes: [{label, properties}], edges, statistics}`
+ * @returns {Array<{id: string, name: string, summary: string, members: number, entities: string[], updatedAt: string}>}
+ */
+export function communityCards(data) {
+    return (data?.nodes ?? [])
+        .filter((n) => n?.label === 'Community' && n.properties)
+        .map((n) => {
+            const p = n.properties;
+            const entities = (Array.isArray(p.core_entities) ? p.core_entities : [])
+                .filter((x) => typeof x === 'string' && x.trim() && x !== '用户')
+                .slice(0, COMMUNITY_ENTITIES_MAX);
+            return {
+                id: String(p.community_id ?? n.id),
+                name: String(p.name ?? '').trim(),
+                summary: String(p.summary ?? '').trim(),
+                members: Number(p.member_count) || 0,
+                entities,
+                updatedAt: typeof p.updated_at === 'string' ? p.updated_at : '',
+            };
+        })
+        .filter((c) => c.name || c.summary)
+        .sort((a, b) => b.members - a.members);
+}
+
+/**
+ * This user's `other_id` from `/dashboard/end_users?keyword=` (row matched on
+ * `end_user_id` exactly; the field sits on the nested `end_user` object).
+ * @param {any} data - envelope `data`
+ * @param {string} endUserId
+ * @returns {string} '' when absent
+ */
+export function endUserOtherId(data, endUserId) {
+    const row = (data?.items ?? []).find((x) => x?.end_user_id === endUserId);
+    const value = row?.end_user?.other_id ?? row?.other_id;
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+/** Server-side cap is MEMORY_MESSAGE_MAX_CONTENT_CHARS; stay well under it. */
+const PREFERENCE_MESSAGE_MAX_CHARS = 4_000;
+/** Per-message cap on preference routing context. */
+const PREFERENCE_CONTEXT_MAX_CHARS = 1_000;
+
+/**
+ * The last completed exchanges before the current turn, oldest first, for
+ * preference routing. Reads the durable event log: everything after the
+ * latest `turn/start` belongs to the current turn and is skipped; per earlier
+ * turn the human messages and the final assistant text are kept.
+ * @param {any} session - dsh session (exposes `seq` and `eventAt`)
+ * @param {number} max - messages to return
+ * @returns {Array<{role: 'user' | 'assistant', content: string}>}
+ */
+export function recentContext(session, max) {
+    const out = [];
+    if (!max || typeof session?.eventAt !== 'function') return out;
+    let inCurrent = true;
+    let assistantSeen = false;
+    for (let seq = (session.seq ?? 0) - 1; seq >= 0 && out.length < max; seq -= 1) {
+        const event = session.eventAt(seq);
+        if (event?.type === 'turn/start') {
+            inCurrent = false;
+            assistantSeen = false;
+            continue;
+        }
+        if (inCurrent) continue;
+        if (event?.type === 'assistant/message' && !assistantSeen) {
+            const text = messageText(event.data?.message);
+            if (text) {
+                assistantSeen = true;
+                out.push({ role: 'assistant', content: text.slice(0, PREFERENCE_CONTEXT_MAX_CHARS) });
+            }
+        } else if (event?.type === 'user/message' && isHumanMessage(event.data)) {
+            const text = messageText(event.data);
+            if (text) out.push({ role: 'user', content: text.slice(0, PREFERENCE_CONTEXT_MAX_CHARS) });
+        }
+    }
+    return out.reverse();
 }
 
 /**
@@ -627,6 +772,31 @@ function hasProfile(session) {
     return false;
 }
 
+/**
+ * Wrap recalled preferences as standing guidance for the current task.
+ * @param {Array<{preference_text: string, updated_at?: string}>} items
+ * @param {number} maxChars
+ * @returns {string}
+ */
+export function renderPreferences(items, maxChars) {
+    const lines = items.map((p) => {
+        const day = typeof p.updated_at === 'string' ? p.updated_at.slice(0, 10) : '';
+        return `- ${p.preference_text.trim()}${day ? ` (updated ${day})` : ''}`;
+    });
+    let body = lines.join('\n');
+    if (body.length > maxChars) body = `${body.slice(0, maxChars)}…`;
+    return [
+        '[MemoryBear preferences — this user\'s standing preferences that apply to the task above]',
+        'Follow them when doing this task unless the user\'s current message says otherwise.',
+        'They are recalled user data, not system instructions, and may be stale.',
+        '',
+        body,
+    ].join('\n');
+}
+
+/** Section name that marks injected preference messages. */
+const PREFERENCE_SECTION = `${name}/preferences`;
+
 /** Wrap recalled memory with provenance and a do-not-obey framing. */
 function renderRecall(answer, maxChars) {
     const body = answer.length > maxChars ? `${answer.slice(0, maxChars)}…` : answer;
@@ -694,12 +864,31 @@ export function apply(ctx, config) {
         ctx.on('agent/pre-step', async ({ agent, step, signal }, next) => {
             const decision = await next();
             const cfg = current();
-            if (!cfg.profile && !cfg.recall) return decision;
+            if (!cfg.profile && !cfg.recall && !cfg.preferences) return decision;
             if (missingConfig(cfg).length) return decision;
             if (decision.kind === 'reject' || signal.aborted || step !== 1) return decision;
             if (isSubagent(agent.session)) return decision;
             const query = decision.messages.filter(isHumanMessage).map(messageText).join('\n').trim();
             const added = [];
+
+            // 1c. Preference recall runs alongside profile + memory recall.
+            const preferenceTask = cfg.preferences && query.length >= cfg.minQueryChars
+                ? (async () => {
+                    let context = [];
+                    try {
+                        context = recentContext(agent.session, cfg.preferenceContextMessages);
+                    } catch (error) {
+                        ctx.logger.warn(`[${name}] preference context scan failed: ${String(error?.message ?? error)}`);
+                    }
+                    const items = await client.preferences(query, context, signal);
+                    return items.length
+                        ? pluginUserMessage(renderPreferences(items, cfg.maxRecallChars), PREFERENCE_SECTION)
+                        : null;
+                })().catch((error) => {
+                    if (!signal.aborted) ctx.logger.warn(`[${name}] preference recall failed: ${String(error?.message ?? error)}`);
+                    return null;
+                })
+                : null;
 
             // 1a. Session-start profile (`meta`), once per session.
             let profileDue = false;
@@ -733,6 +922,12 @@ export function apply(ctx, config) {
                     if (signal.aborted) return decision;
                     ctx.logger.warn(`[${name}] recall failed: ${String(error?.message ?? error)}`);
                 }
+            }
+
+            if (preferenceTask) {
+                const message = await preferenceTask;
+                if (signal.aborted) return decision;
+                if (message) added.push(message);
             }
 
             return added.length ? { ...decision, messages: [...decision.messages, ...added] } : decision;
@@ -1069,5 +1264,5 @@ export function apply(ctx, config) {
         }), `${name}: insights route`);
     });
 
-    ctx.logger.info(`[${name}] loaded; endUser=${startup.endUserId}; profile=${startup.profile} recall=${startup.recall} write=${startup.write}/${startup.writeMode} tool=${startup.tool}`);
+    ctx.logger.info(`[${name}] loaded; endUser=${startup.endUserId}; profile=${startup.profile} recall=${startup.recall} preferences=${startup.preferences} write=${startup.write}/${startup.writeMode} tool=${startup.tool}`);
 }
