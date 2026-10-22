@@ -3,6 +3,11 @@
   "version": "0.1.0-alpha.6",
   "description": "MemoryBear long-term memory for DeepSeek Harness: per-turn recall, end-of-turn write, and a memory_search tool",
   "icon": "./icon.png",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SuanmoSuanyangTechnology/MemoryBearDSHPlugin.git",
+    "directory": "packages/dsh-memorybear"
+  },
   "type": "module",
   "main": "./index.js",
   "exports": {
