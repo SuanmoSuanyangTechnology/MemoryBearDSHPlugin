@@ -178,4 +178,18 @@ console.log('ok - overrides show a reset control');
 
 find(render(), 'mb-write').props.onChange({ target: { checked: false } });
 assert.equal(find(render(), 'mb-write-mode'), undefined, 'write off hides mode');
+
+// Preference group: its own controls, advanced fields validate as integers.
+tree = render();
+for (const id of ['mb-preference-mode', 'mb-pref-context', 'mb-pref-timeout']) {
+    assert.ok(find(tree, id), `preference control ${id} rendered`);
+}
+assert.equal(find(tree, 'mb-end-user-other'), undefined, 'other_id is looked up, not configured');
+find(tree, 'mb-pref-context').props.onChange({ target: { value: '-1' } });
+assert.equal(find(render(), 'mb-pref-context').props['aria-invalid'], true, 'negative context count is invalid');
+find(render(), 'mb-pref-context').props.onChange({ target: { value: '0' } });
+assert.equal(find(render(), 'mb-pref-context').props['aria-invalid'], undefined, '0 context messages is allowed');
+find(render(), 'mb-pref-timeout').props.onChange({ target: { value: '1.5' } });
+assert.equal(find(render(), 'mb-pref-timeout').props['aria-invalid'], true, 'timeout must be a whole number');
+console.log('ok - preference group renders and validates');
 console.log('all client page tests passed');

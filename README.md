@@ -3,8 +3,8 @@
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）接入 MemoryBear 长期记忆的插件。
 
 - **召回**：会话第一轮加载 MemoryBear 用户画像（`meta`），也可以每轮自动召回一次（`recall: true`）。
-- **偏好**：每轮按这轮的任务调用 MemoryBear 偏好引擎，把相关的偏好（比如"装依赖用 uv"）注入给模型（`preferences: true`）。服务端记忆配置要开启偏好引擎才有数据。
-- **工具**：`memory_search`，由模型按需调用，档位（express / quick / normal / deep）也由模型选。
+- **偏好**：用 MemoryBear 偏好引擎按任务挑出相关偏好（比如"装依赖用 uv"），两种用法二选一（`preferenceMode`）：`auto` 每轮开头自动注入；`tool` 不注入，由模型在需要时调 `memory_preferences`，用一句话描述接下来的工作去查，场景仍由服务端判断。服务端记忆配置要开启偏好引擎才有数据。
+- **工具**：`memory_search`，由模型按需调用，档位（express / quick / normal / deep）也由模型选；`preferenceMode: tool` 时另有 `memory_preferences`。
 - **写入**：一轮对话完成后，把用户原话和助手最后一条回复写入 MemoryBear。可以每轮写、每 N 轮写，或者会话空闲后再写。
 - **网页配置页**：在 dsh 网页版的 Plugins 页里可以改配置。API key 存在 dsh 的凭据库里，不写进配置文件。
 
@@ -20,8 +20,8 @@
 | `POST {baseURL}/memory/write` | 写入对话（只写用户原话和助手最后一条回复，附件以 `files` 字段带上） |
 | `POST {baseURL}/memory/files/upload` | 上传用户消息里的图片/文件（`attachments` 不为 `none` 时） |
 | `GET {baseURL}/memory/emotion-memory/query_emotion_overview`、`GET .../query_emotion_timeline` | 右侧边栏"记忆"标签页的近期情绪、情绪记录（`panel` 开启时） |
-| `GET {baseURL}/dashboard/end_users?keyword=<endUserId>` | 右侧边栏"记忆"标签页的记忆标签和记忆条数（按 `endUserId` 精确挑出本人那一行；`panel` 开启时）；没填 `endUserOtherId` 时也用它查本人的 `other_id` |
-| `POST {baseURL}/memory/preference/recall` | 每轮偏好召回，请求头 `X-End-User-Other-Id` 带本人 `other_id`（`preferences` 开启时） |
+| `GET {baseURL}/dashboard/end_users?keyword=<endUserId>` | 右侧边栏"记忆"标签页的记忆标签和记忆条数（按 `endUserId` 精确挑出本人那一行；`panel` 开启时）；偏好接口要的本人 `other_id` 也从这里查，查到后缓存 |
+| `POST {baseURL}/memory/preference/recall` | 每轮偏好召回，请求头 `X-End-User-Other-Id` 带本人 `other_id`（`preferenceMode: auto` 时每轮调；`tool` 时由 `memory_preferences` 工具调）|
 | `GET {baseURL}/memory/analytics/community_graph` | 右侧边栏"记忆"标签页的记忆主题（服务端只取社区节点的名字、摘要、实体数和核心实体；`panel` 开启时） |
 
 右侧边栏"记忆"标签页的数据由插件在 dsh 服务端注册的 `GET /api/memorybear/insights` 转发，dsh 负责登录校验，API key 不会发到浏览器。
@@ -75,8 +75,7 @@ dsh plugin --profile <你的 profile> add @kesun5/dsh-memorybear@0.1.0-alpha.5
 | `apiKeyEnv` | `MEMORYBEAR_API_KEY` | API key 的凭据引用 |
 | `profile` | `false` | 会话首轮加载 `meta` 画像 |
 | `recall` | `true` | 每轮自动召回 |
-| `preferences` | `true` | 每轮按任务召回偏好 |
-| `endUserOtherId` | 空 | 偏好接口认人用的 end_user `other_id`；留空时按 `endUserId` 自动查 |
+| `preferenceMode` | `auto` | 偏好用法：`auto` 每轮自动召回注入 / `tool` 注册 `memory_preferences` 由模型按需查 / `off` 不用 |
 | `preferenceContextMessages` | `4` | 偏好召回带上的前几条消息（服务端也会截断） |
 | `preferenceTimeoutMs` | `8000` | 偏好召回超时，和记忆召回同时进行 |
 | `searchSwitch` | `express` | 自动召回用的档位 |

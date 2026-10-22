@@ -38,8 +38,9 @@ window.__ModuleLoader__.load({
 		const FIELDS = {
 			profile: { kind: "bool" },
 			recall: { kind: "bool" },
-			preferences: { kind: "bool" },
-			endUserOtherId: { kind: "text" },
+			preferenceMode: { kind: "select", options: ["auto", "tool", "off"] },
+			preferenceContextMessages: { kind: "int", min: 0 },
+			preferenceTimeoutMs: { kind: "int", min: 1 },
 			searchSwitch: { kind: "select", options: SEARCH_MODES },
 			toolSearchSwitches: { kind: "multi", options: SEARCH_MODES },
 			write: { kind: "bool" },
@@ -62,10 +63,20 @@ window.__ModuleLoader__.load({
 			profileHint: "每个会话第一轮调一次 meta，把画像放进对话；画像为空时不加。",
 			recall: "每轮自动召回",
 			recallHint: "每轮开头按用户原话查一次记忆。关掉时只靠模型主动调 memory_search。",
-			preferences: "每轮按任务召回偏好",
-			preferencesHint: "每轮开头让偏好引擎挑出跟这轮任务相关的偏好（如“装依赖用 uv”），放进对话。服务端记忆配置要开启偏好引擎才会有数据。",
-			endUserOtherId: "end_user other_id",
-			endUserOtherIdHint: "偏好接口按 other_id 认人。留空时自动按 end_user ID 查出来。",
+			preferenceMode: "偏好的用法",
+			prefMode_auto: "每轮自动召回",
+			prefMode_tool: "模型按需调用 memory_preferences 工具",
+			prefMode_off: "不用偏好",
+			prefModeHint_auto: "每轮开头让偏好引擎挑出跟这轮任务相关的偏好（如“装依赖用 uv”），放进对话。每轮多一次场景判断，约 2-3 秒。",
+			prefModeHint_tool: "不自动注入；模型在开始某类任务前、或中途换了任务类型（比如写完代码要写提交信息）时自己查。只在调用时多花 2-3 秒。",
+			prefModeHint_off: "既不注入偏好，也不提供 memory_preferences 工具。",
+			prefModeNote: "服务端记忆配置要开启偏好引擎才会有数据。",
+			preferenceGroup: "偏好",
+			preferenceAdvanced: "高级",
+			preferenceContextMessages: "召回时带的上下文条数",
+			preferenceContextMessagesHint: "每轮自动召回偏好时，带上前几条用户消息和回答，帮服务端判断这轮是什么任务。0 表示只发这轮原话。memory_preferences 工具不带上下文。",
+			preferenceTimeoutMs: "偏好召回超时（毫秒）",
+			preferenceTimeoutMsHint: "超时后这一轮不注入偏好，对话照常进行。",
 			searchSwitch: "自动召回档位",
 			searchSwitchHint: "自动召回用这一档；也是 memory_search 不指定档位时的默认值。",
 			toolSearchSwitches: "memory_search 可选档位",
@@ -106,6 +117,7 @@ window.__ModuleLoader__.load({
 			attachHint_images: "用户发的图片随这一轮上传到 MemoryBear；文件不上传。",
 			attachHint_all: "图片和 MemoryBear 能解析的文件（文档、音频、视频）都上传；其他类型和超过大小上限（默认 20MB）的跳过。",
 			panelTitle: "记忆",
+			panelGroup: "记忆面板",
 			panelSwitch: "右侧栏记忆面板",
 			panelSwitchHint: "在会话右侧栏加一个“记忆”标签页，显示记忆数、记忆标签、情绪记录、用户画像和记忆主题。关掉后标签页显示已关闭。",
 			panelGuide: "MemoryBear 里的记忆数、记忆标签、近期情绪、用户画像和记忆主题",
@@ -155,10 +167,20 @@ window.__ModuleLoader__.load({
 			profileHint: "Calls meta once per session and adds the profile to the conversation; skipped when empty.",
 			recall: "Recall automatically every turn",
 			recallHint: "Queries memory with the user's words at the start of each turn. When off, only memory_search calls by the model read memory.",
-			preferences: "Recall task preferences every turn",
-			preferencesHint: "At the start of each turn the preference engine picks the user's preferences that apply to this task (e.g. \"install deps with uv\") and adds them to the conversation. Needs the preference engine enabled in the server memory config.",
-			endUserOtherId: "end_user other_id",
-			endUserOtherIdHint: "The preference API identifies users by other_id. Leave empty to look it up from the end_user ID.",
+			preferenceMode: "How preferences are used",
+			prefMode_auto: "Recall automatically every turn",
+			prefMode_tool: "Model calls the memory_preferences tool when needed",
+			prefMode_off: "Don't use preferences",
+			prefModeHint_auto: "At the start of each turn the preference engine picks the preferences that apply to this task (e.g. \"install deps with uv\") and adds them to the conversation. Costs one situation routing per turn, about 2-3 s.",
+			prefModeHint_tool: "Nothing is injected; the model looks preferences up before a kind of task, or when the work changes kind mid-task (e.g. from code to the commit message). Costs 2-3 s only when called.",
+			prefModeHint_off: "No preference injection and no memory_preferences tool.",
+			prefModeNote: "Needs the preference engine enabled in the server memory config.",
+			preferenceGroup: "Preferences",
+			preferenceAdvanced: "Advanced",
+			preferenceContextMessages: "Context messages sent with recall",
+			preferenceContextMessagesHint: "How many earlier user messages and answers automatic preference recall sends, so the server can tell what kind of task this turn is. 0 sends only this turn's words. The memory_preferences tool sends none.",
+			preferenceTimeoutMs: "Preference recall timeout (ms)",
+			preferenceTimeoutMsHint: "On timeout this turn gets no preferences; the conversation carries on.",
 			searchSwitch: "Automatic recall mode",
 			searchSwitchHint: "Used by automatic recall, and by memory_search when the model names no mode.",
 			toolSearchSwitches: "Modes memory_search may use",
@@ -199,6 +221,7 @@ window.__ModuleLoader__.load({
 			attachHint_images: "Images the user attaches are uploaded to MemoryBear with the turn; files are not.",
 			attachHint_all: "Images and files MemoryBear can parse (documents, audio, video) are uploaded; other types and anything over the size cap (20 MB by default) are skipped.",
 			panelTitle: "Memory",
+			panelGroup: "Memory panel",
 			panelSwitch: "Memory panel in the right sidebar",
 			panelSwitchHint: "Adds a Memory tab to the session's right sidebar with memory counts, memory tags, emotion history, the user profile and memory topics. When off, the tab says it is turned off.",
 			panelGuide: "Memory counts, memory tags, recent emotions, profile and memory topics from MemoryBear",
@@ -468,7 +491,10 @@ window.__ModuleLoader__.load({
 		const CSS = [
 			".mb-cfg{display:flex;flex-direction:column;gap:20px;color:var(--dsw-alias-label-primary);font-size:13px}",
 			".mb-group{display:flex;flex-direction:column}",
-			".mb-group-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-secondary);margin:0 0 4px}",
+			".mb-group-title{font-size:16px;font-weight:600;line-height:1.4;color:var(--dsw-alias-label-primary);margin:0 0 6px}",
+			".mb-adv{display:flex;flex-direction:column;gap:inherit}",
+			".mb-adv>summary{cursor:pointer;font-size:16px;font-weight:600;line-height:1.4;color:var(--dsw-alias-label-primary)}",
+			".mb-adv[open]>summary{margin-bottom:8px}",
 			".mb-field{display:flex;flex-direction:column;gap:6px;padding:12px 0}",
 			".mb-field+.mb-field{border-top:.5px solid var(--dsw-alias-border-l2)}",
 			".mb-head{display:flex;align-items:center;gap:8px}",
@@ -602,35 +628,11 @@ window.__ModuleLoader__.load({
 				return h("div", { className: "mb-cfg" },
 					!s.writable ? h("p", { className: "mb-hint" }, t("readOnly")) : null,
 					h("section", { className: "mb-group" },
-						h("h4", { className: "mb-group-title" }, t("recallGroup")),
-						h(SwitchField, { id: "mb-profile", field: "profile", label: t("profile"), hint: t("profileHint"), f, disabled, t, controller }),
-						h(SwitchField, { id: "mb-recall", field: "recall", label: t("recall"), hint: t("recallHint"), f, disabled, t, controller }),
-						h(SwitchField, { id: "mb-preferences", field: "preferences", label: t("preferences"), hint: t("preferencesHint"), f, disabled, t, controller }),
-						h(SwitchField, { id: "mb-panel", field: "panel", label: t("panelSwitch"), hint: t("panelSwitchHint"), f, disabled, t, controller }),
-						h(Field, { id: "mb-search-switch", label: t("searchSwitch"), hint: t("searchSwitchHint"), state: f.searchSwitch, disabled, t, onReset: () => controller.reset("searchSwitch") },
-							h("select", {
-								id: "mb-search-switch",
-								className: "mb-input",
-								value: f.searchSwitch.text || "express",
-								disabled,
-								onChange: (event) => controller.edit("searchSwitch", event.target.value)
-							}, SEARCH_MODES.map((m) => h("option", { key: m, value: m }, t(`search_${m}`))))),
-						h(Field, {
-							id: "mb-tool-switches", label: t("toolSearchSwitches"), hint: t("toolSearchSwitchesHint"),
-							state: f.toolSearchSwitches, disabled, t, error: t("pickOne"), onReset: () => controller.reset("toolSearchSwitches")
-						}, h("div", { className: "mb-checks", id: "mb-tool-switches" }, SEARCH_MODES.map((m) => checkbox(
-							`mb-tool-${m}`, t(`search_${m}`), { text: f.toolSearchSwitches.text.includes(m) }, disabled,
-							(on) => controller.edit("toolSearchSwitches", on
-								? SEARCH_MODES.filter((x) => x === m || f.toolSearchSwitches.text.includes(x))
-								: f.toolSearchSwitches.text.filter((x) => x !== m))))))),
-					h("section", { className: "mb-group" },
 						h("h4", { className: "mb-group-title" }, t("connection")),
 						h(Field, { id: "mb-base-url", label: t("baseURL"), hint: t("baseURLHint"), state: f.baseURL, disabled, t, onReset: () => controller.reset("baseURL") },
 							textInput("mb-base-url", f.baseURL, disabled, (v) => controller.edit("baseURL", v), { placeholder: "https://<host>/v1" })),
 						h(Field, { id: "mb-end-user", label: t("endUserId"), hint: t("endUserIdHint"), state: f.endUserId, disabled, t, onReset: () => controller.reset("endUserId") },
 							textInput("mb-end-user", f.endUserId, disabled, (v) => controller.edit("endUserId", v))),
-						h(Field, { id: "mb-end-user-other", label: t("endUserOtherId"), hint: t("endUserOtherIdHint"), state: f.endUserOtherId, disabled, t, onReset: () => controller.reset("endUserOtherId") },
-							textInput("mb-end-user-other", f.endUserOtherId, disabled, (v) => controller.edit("endUserOtherId", v))),
 						h(Field, {
 							id: "mb-api-key",
 							label: t("apiKey"),
@@ -649,6 +651,26 @@ window.__ModuleLoader__.load({
 							placeholder: cred.configured ? "••••••••" : "",
 							onChange: (event) => controller.editKey(event.target.value)
 						}))),
+					h("section", { className: "mb-group" },
+						h("h4", { className: "mb-group-title" }, t("recallGroup")),
+						h(SwitchField, { id: "mb-profile", field: "profile", label: t("profile"), hint: t("profileHint"), f, disabled, t, controller }),
+						h(SwitchField, { id: "mb-recall", field: "recall", label: t("recall"), hint: t("recallHint"), f, disabled, t, controller }),
+						h(Field, { id: "mb-search-switch", label: t("searchSwitch"), hint: t("searchSwitchHint"), state: f.searchSwitch, disabled, t, onReset: () => controller.reset("searchSwitch") },
+							h("select", {
+								id: "mb-search-switch",
+								className: "mb-input",
+								value: f.searchSwitch.text || "express",
+								disabled,
+								onChange: (event) => controller.edit("searchSwitch", event.target.value)
+							}, SEARCH_MODES.map((m) => h("option", { key: m, value: m }, t(`search_${m}`))))),
+						h(Field, {
+							id: "mb-tool-switches", label: t("toolSearchSwitches"), hint: t("toolSearchSwitchesHint"),
+							state: f.toolSearchSwitches, disabled, t, error: t("pickOne"), onReset: () => controller.reset("toolSearchSwitches")
+						}, h("div", { className: "mb-checks", id: "mb-tool-switches" }, SEARCH_MODES.map((m) => checkbox(
+							`mb-tool-${m}`, t(`search_${m}`), { text: f.toolSearchSwitches.text.includes(m) }, disabled,
+							(on) => controller.edit("toolSearchSwitches", on
+								? SEARCH_MODES.filter((x) => x === m || f.toolSearchSwitches.text.includes(x))
+								: f.toolSearchSwitches.text.filter((x) => x !== m))))))),
 					h("section", { className: "mb-group" },
 						h("h4", { className: "mb-group-title" }, t("writing")),
 						h(SwitchField, { id: "mb-write", field: "write", label: t("write"), hint: t("writeHint"), f, disabled, t, controller }),
@@ -678,6 +700,33 @@ window.__ModuleLoader__.load({
 							disabled,
 							onChange: (event) => controller.edit("attachments", event.target.value)
 						}, FIELDS.attachments.options.map((m) => h("option", { key: m, value: m }, t(`attach_${m}`)))))),
+					h("section", { className: "mb-group" },
+						h("h4", { className: "mb-group-title" }, t("panelGroup")),
+						h(SwitchField, { id: "mb-panel", field: "panel", label: t("panelSwitch"), hint: t("panelSwitchHint"), f, disabled, t, controller })),
+					h("section", { className: "mb-group" },
+						h("h4", { className: "mb-group-title" }, t("preferenceGroup")),
+						h(Field, {
+							id: "mb-preference-mode", label: t("preferenceMode"),
+							hint: `${t(`prefModeHint_${f.preferenceMode.text || "auto"}`)}${(f.preferenceMode.text || "auto") === "off" ? "" : " " + t("prefModeNote")}`,
+							state: f.preferenceMode, disabled, t, onReset: () => controller.reset("preferenceMode")
+						}, h("select", {
+							id: "mb-preference-mode",
+							className: "mb-input",
+							value: f.preferenceMode.text || "auto",
+							disabled,
+							onChange: (event) => controller.edit("preferenceMode", event.target.value)
+						}, FIELDS.preferenceMode.options.map((m) => h("option", { key: m, value: m }, t(`prefMode_${m}`)))))),
+					h("section", { className: "mb-group" },
+						h("details", { className: "mb-adv" },
+							h("summary", null, t("preferenceAdvanced")),
+							h(Field, {
+								id: "mb-pref-context", label: t("preferenceContextMessages"), hint: t("preferenceContextMessagesHint"), state: f.preferenceContextMessages, disabled, t,
+								error: fill(t("invalidInt"), { min: 0 }), onReset: () => controller.reset("preferenceContextMessages")
+							}, textInput("mb-pref-context", f.preferenceContextMessages, disabled, (v) => controller.edit("preferenceContextMessages", v), { inputMode: "numeric" })),
+							h(Field, {
+								id: "mb-pref-timeout", label: t("preferenceTimeoutMs"), hint: t("preferenceTimeoutMsHint"), state: f.preferenceTimeoutMs, disabled, t,
+								error: fill(t("invalidInt"), { min: 1 }), onReset: () => controller.reset("preferenceTimeoutMs")
+							}, textInput("mb-pref-timeout", f.preferenceTimeoutMs, disabled, (v) => controller.edit("preferenceTimeoutMs", v), { inputMode: "numeric" })))),
 					h("div", { className: "mb-actions" },
 						h("button", {
 							type: "button",

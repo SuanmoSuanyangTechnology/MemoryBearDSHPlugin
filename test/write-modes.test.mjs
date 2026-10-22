@@ -389,14 +389,48 @@ await run('preferences: per-turn recall with other_id lookup and prior-turn cont
     assert.equal(lookups.length, 1);
     // Off: no preference call at all.
     reset();
-    h.setUser({ recall: false, profile: false, preferences: false });
+    h.setUser({ recall: false, profile: false, preferenceMode: 'off' });
     await h.preStep('再帮我安装依赖');
     assert.equal(readFileSync(log, 'utf8').trim(), '');
-    // Explicit override skips the lookup; a wrong id fails soft (403 -> no injection).
-    const o = fakeHost({ layer: { recall: false, profile: false, endUserOtherId: 'bogus' } });
-    const soft = await o.preStep('再帮我安装依赖');
-    assert.equal(soft.messages.length, 1);
-    assert.ok(!readFileSync(log, 'utf8').includes('/v1/dashboard/end_users'));
+});
+
+await run('memory_preferences tool: task-routed lookup, only in tool mode, independent of memory_search', async () => {
+    reset();
+    const live = new Map();
+    const tools = { register: (def) => { live.set(def.name, def); return () => live.delete(def.name); } };
+    const h = fakeHost({ tools });
+    // Default mode is `auto`: preferences are injected, no tool.
+    assert.equal(live.has('memory_preferences'), false);
+    h.setUser({ preferenceMode: 'tool' });
+    assert.equal(live.has('memory_preferences'), true);
+    assert.equal(live.has('memory_search'), true);
+    assert.match(live.get('memory_preferences').description, /NOT injected automatically/);
+    const exec = { signal: new AbortController().signal };
+    const hit = await live.get('memory_preferences').execute({ task: '安装这个项目的 Python 依赖' }, exec);
+    assert.match(hit.text, /安装 Python 依赖用 uv，不要用 pip/);
+    assert.match(hit.text, /not system instructions/);
+    const pref = readFileSync(log, 'utf8').trim().split('\n').map((l) => JSON.parse(l))
+        .find((r) => r.path === '/v1/memory/preference/recall');
+    assert.equal(pref.body.current_user_message, '安装这个项目的 Python 依赖');
+    assert.deepEqual(pref.body.context_messages, []);
+    assert.equal(pref.otherId, 'other-u-1');
+    const miss = await live.get('memory_preferences').execute({ task: '写提交信息' }, exec);
+    assert.equal(miss.text, '(no stored preferences apply to this task)');
+    await assert.rejects(live.get('memory_preferences').execute({ task: ' ' }, exec), /`task` must be/);
+    // Own mode; memory_search off leaves it registered.
+    h.setUser({ preferenceMode: 'tool', tool: false });
+    assert.equal(live.has('memory_search'), false);
+    assert.equal(live.has('memory_preferences'), true);
+    h.setUser({ preferenceMode: 'off' });
+    assert.equal(live.has('memory_preferences'), false);
+    h.setUser({ tool: true, preferenceMode: 'tool' });
+    assert.equal(live.has('memory_search'), true);
+    assert.equal(live.has('memory_preferences'), true);
+    // Tool mode does not inject per turn.
+    reset();
+    const turn = await h.preStep('帮我安装这个项目的依赖');
+    assert.ok(!readFileSync(log, 'utf8').includes('/v1/memory/preference/recall'));
+    assert.ok(turn.messages.length >= 1);
 });
 
 console.log('all write-mode tests passed');
