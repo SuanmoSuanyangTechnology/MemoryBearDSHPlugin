@@ -1,0 +1,40 @@
+{
+  "name": "@kesun5/dsh-memoryskills",
+  "version": "0.1.0-alpha.1",
+  "description": "MemorySkills long-term memory for DeepSeek Harness: sign in with email, paste one sk-mem- key, no MemoryBear tenant setup",
+  "icon": "./icon.png",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "icon.png",
+    "cordis.patch.yml"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "memory",
+    "memorybear",
+    "memoryskills"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node test/plugin.test.mjs"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "3.18.4"
+  }
+}

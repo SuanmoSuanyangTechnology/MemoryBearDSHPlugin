@@ -1,0 +1,12 @@
+# MemorySkills long-term memory for DeepSeek Harness.
+# Sign in at https://memoryskills.redbearai.com/#/login, copy the sk-mem- key,
+# and expose it to dsh as MEMORYSKILLS_API_KEY (launch env or credential store).
+# Optional overrides (in the profile's own cordis.patch.yml):
+#
+# - id: memoryskills-memory
+#   config:
+#     portalURL: https://memoryskills.redbearai.com
+#     writeMode: batch        # turn | batch | idle
+- insert:
+    - id: memoryskills-memory
+      name: '@kesun5/dsh-memoryskills'
