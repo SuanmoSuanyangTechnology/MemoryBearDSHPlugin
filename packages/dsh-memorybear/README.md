@@ -26,17 +26,17 @@
 
 右侧边栏"记忆"标签页的数据由插件在 dsh 服务端注册的 `GET /api/memorybear/insights` 转发，dsh 负责登录校验，API key 不会发到浏览器。
 
-插件不会创建 end_user，需要事先建好（可以用 `scripts/create_end_user.py`）。
+插件不会创建 end_user，需要事先在 MemoryBear 控制台或管理接口建好。所有 MemoryBear 路由、查询参数和请求体集中在 `src/services/api.ts`。
 
 请求头带 `Authorization: Bearer <key>`。子代理（subagent）会话不召回也不写入。
 
 ## 安装
 
 ```sh
-dsh plugin --profile <你的 profile> add @kesun5/dsh-memorybear@0.1.0-alpha.6
+dsh plugin --profile <你的 profile> add @redbear/dsh-memorybear@0.1.0-alpha.6
 ```
 
-桌面端在插件页的"包名或地址"里填同样的 `@kesun5/dsh-memorybear@0.1.0-alpha.6`。
+桌面端在插件页的"包名或地址"里填同样的 `@redbear/dsh-memorybear@0.1.0-alpha.6`。
 
 - 一律写明版本号：pnpm 11 有新版冷却期（`minimumReleaseAge`），不带版本号时刚发布的版本可能被跳过，装成旧版。
 - `add` 会自动把插件加进 profile 的 `dsh.profile.bundles`，不用手动改 `package.json`。
@@ -95,32 +95,47 @@ dsh plugin --profile <你的 profile> add @kesun5/dsh-memorybear@0.1.0-alpha.6
 | `minQueryChars` | `2` | 短于这个长度的输入（如"好""继续"）不召回 |
 | `language` | `zh` | 写入时的 `X-Language-Type` |
 
-## 验证
+## 开发与验证
+
+源码全部是 TypeScript 6.x，位于 `src/`；dsh Host 适配层和表单框架来自 `@redbear/dsh-memory-core`。构建产物在 `lib/`（不提交）：
+
+- `lib/index.js`：Host 半边打成单个 ESM 文件
+- `lib/client.js`：浏览器半边打成 dsh 客户端加载器要求的 lazy-CJS bundle
+- `lib/types/**/*.d.ts`：两半边的类型声明
 
 ```sh
-# 单元测试，不需要 dsh 和真实服务
-node test/client-page.test.mjs
-MOCK_LOG=/tmp/mock.jsonl node test/write-modes.test.mjs
-
-# 端到端：本地 mock 服务 + 真实 dsh
-node test/mock-memorybear.mjs 18765 mock.jsonl &
-MEMORY_SERVICE_BASE_URL=http://127.0.0.1:18765 MEMORY_SERVICE_API_KEY=mock \
-  uv run python scripts/run_dsh.py "我最喜欢什么颜色？"
+# 在仓库根目录先执行 pnpm install
+pnpm build          # 先构建 core，再 tsc 生成 lib/types、esbuild 打出两个 bundle
+pnpm typecheck      # 全量类型检查（含测试和脚本）
+pnpm test           # 单元测试，不需要 dsh 和真实服务
 ```
 
-mock 服务预置的记忆是"最喜欢的颜色是靛蓝色"。`mock.jsonl` 里应该能看到 `read/sync` 和 `write` 请求。`scripts/run_dsh.py` 从 `~/.config/redbear/secrets.env` 读取 LLM 和 MemoryBear 的 key，并通过子进程环境变量传给 dsh。
+端到端：本地 mock 服务 + 真实 dsh。
+
+```sh
+pnpm mock 18765 mock.jsonl &
+MEMORY_SERVICE_BASE_URL=http://127.0.0.1:18765 MEMORY_SERVICE_API_KEY=mock \
+  pnpm dsh "我最喜欢什么颜色？"
+```
+
+mock 服务预置的记忆是"最喜欢的颜色是靛蓝色"。`mock.jsonl` 里应该能看到 `read/sync` 和 `write` 请求。`scripts/run-dsh.ts` 从 `~/.config/redbear/secrets.env` 读取 LLM 和 MemoryBear 的 key，并通过子进程环境变量传给 dsh。
 
 ## 目录
 
 | 路径 | 内容 |
 |---|---|
-| `index.js` | 服务端插件，全部逻辑都在这里 |
-| `client.js` | 网页 Plugins 页的配置界面 |
+| `src/index.ts` | 服务端插件入口：组装各 feature，导出 `name` / `inject` / `Config` / `apply` |
+| `src/config.ts` | 配置 schema、volatile 快照、连接字段校验 |
+| `src/dsh/session.ts` | 从会话事件日志读取偏好召回所需的上下文 |
+| `src/features/` | 召回、写入、工具、记忆面板四个功能模块 |
+| `src/services/` | MemoryBear 路由与请求构造（`api.ts`）、V1 客户端、画像解析、面板数据整形 |
+| `src/client/` | 网页 Plugins 配置页和右侧栏记忆面板（打包成 `lib/client.js`） |
+| `src/client/locale/` | 配置页与记忆面板文案 JSON，构建时打进 `lib/client.js` |
+| `locale/` | dsh 插件元数据（标题、描述），由插件管理器读取 |
+| `test/` | 单元测试、fake host 和 mock 服务 |
+| `scripts/` | 构建、mock 服务和启动 dsh 的开发脚本 |
+| `lib/` | 构建产物：`index.js`、`client.js`、`types/`（不提交） |
 | `cordis.patch.yml` | bundle 补丁，把插件插进 profile |
-| `test/` | 单元测试和 mock 服务 |
-| `scripts/` | 启动 dsh、直连探测服务、建 end_user 等脚本 |
-| `examples/tutorial/` | 插件开发教程的 4 个示例 |
-| `docs/` | 插件开发教程（md/html）和实现说明 |
 
 ## License
 

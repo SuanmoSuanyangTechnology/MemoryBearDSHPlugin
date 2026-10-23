@@ -1,5 +1,5 @@
 {
-  "name": "@kesun5/dsh-memoryskills",
+  "name": "@redbear/dsh-memoryskills",
   "version": "0.1.0-alpha.2",
   "description": "MemorySkills long-term memory for DeepSeek Harness: sign in with email, paste one sk-mem- key, no MemoryBear tenant setup",
   "icon": "./icon.png",
@@ -8,16 +8,29 @@
     "url": "git+https://github.com/SuanmoSuanyangTechnology/MemoryBearDSHPlugin.git",
     "directory": "packages/dsh-memoryskills"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
-  "main": "./index.js",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
   "exports": {
-    ".": "./index.js",
-    "./client": "./client.js",
-    "./package.json": "./package.json"
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
-    "index.js",
-    "client.js",
+    "locale/*.json",
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts",
     "icon.png",
     "cordis.patch.yml"
   ],
@@ -48,9 +61,21 @@
     }
   },
   "scripts": {
-    "test": "node test/plugin.test.mjs && node test/client-page.test.mjs"
+    "build": "pnpm --filter @redbear/dsh-memory-core run build && tsx scripts/build.ts",
+    "typecheck": "pnpm --filter @redbear/dsh-memory-core run build && tsc -p tsconfig.json",
+    "test": "pnpm run build && tsx --test test/api.test.ts test/plugin.test.ts test/client-page.test.ts",
+    "dsh": "tsx scripts/run-dsh.ts",
+    "prepack": "pnpm run build"
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "3.18.4"
+    "@deepseek-ai/schemastery": "~3.18.5",
+    "@redbear/dsh-memory-core": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "@types/react": "18.3.27",
+    "esbuild": "0.25.12",
+    "tsx": "4.21.0",
+    "typescript": "6.0.3"
   }
 }

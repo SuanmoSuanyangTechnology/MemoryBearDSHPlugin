@@ -1,0 +1,54 @@
+{
+  "name": "@redbear/dsh-memory-core",
+  "version": "0.1.0",
+  "description": "Shared Cordis/dsh host adapter, HTTP URL builders and browser form framework for the MemoryBear plugins",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SuanmoSuanyangTechnology/MemoryBearDSHPlugin.git",
+    "directory": "packages/dsh-memory-core"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "cordis"
+  ],
+  "scripts": {
+    "build": "tsx scripts/build.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "tsx --test test/*.test.ts",
+    "prepack": "pnpm run build"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "esbuild": "0.25.12",
+    "tsx": "4.21.0",
+    "typescript": "6.0.3"
+  }
+}
