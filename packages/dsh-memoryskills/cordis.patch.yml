@@ -9,4 +9,4 @@
 #     writeMode: batch        # turn | batch | idle
 - insert:
     - id: memoryskills-memory
-      name: '@kesun5/dsh-memoryskills'
+      name: '@redbear/dsh-memoryskills'

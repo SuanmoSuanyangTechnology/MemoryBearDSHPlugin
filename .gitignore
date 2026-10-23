@@ -1,5 +1,44 @@
+# Dependencies and package-manager state
 node_modules/
-*.tgz
+.pnpm-store/
+.npmrc
+
+# Build output
+/lib/
+/packages/*/lib/
+dist/
+coverage/
+.nyc_output/
+*.tsbuildinfo
+
+# Logs and local test artifacts
+*.log
 *.jsonl
-__pycache__/
+*.tgz
+*.pid
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+!**/.env.example
+.credentials.yaml
+secrets.env
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
+# Editors and OS files
+.idea/
+.vscode/
 .DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+.cache/
+.turbo/
+.eslintcache
