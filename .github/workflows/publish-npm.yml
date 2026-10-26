@@ -93,13 +93,17 @@ jobs:
       - name: Stage package for npm
         id: stage
         run: |
-          pnpm --filter "${{ steps.target.outputs.name }}" stage publish \
+          if ! pnpm --filter "${{ steps.target.outputs.name }}" stage publish \
             --registry=https://registry.npmjs.org \
             --access public \
             --tag "${{ steps.target.outputs.dist_tag }}" \
             --no-git-checks \
             --ignore-scripts \
-            --json > stage-result.json
+            --json > stage-result.json; then
+            echo "stage publish failed; pnpm output:"
+            cat stage-result.json
+            exit 1
+          fi
           node - <<'NODE'
           const fs = require('node:fs')
           const raw = fs.readFileSync('stage-result.json', 'utf8').trim()
