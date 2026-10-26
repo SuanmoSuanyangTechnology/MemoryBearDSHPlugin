@@ -1,6 +1,6 @@
 {
   "name": "@redbearai/dsh-memoryskills",
-  "version": "0.2.0-alpha",
+  "version": "0.2.0-alpha.1",
   "description": "MemorySkills long-term memory for DeepSeek Harness: sign in with email, paste one sk-mem- key, no MemoryBear tenant setup",
   "icon": "./icon.png",
   "repository": {
