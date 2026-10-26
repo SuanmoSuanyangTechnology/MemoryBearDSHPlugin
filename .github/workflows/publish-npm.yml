@@ -88,6 +88,8 @@ jobs:
 
       - run: pnpm test
 
+      - run: pnpm build
+
       - name: Stage package for npm
         id: stage
         run: |
@@ -96,6 +98,7 @@ jobs:
             --access public \
             --tag "${{ steps.target.outputs.dist_tag }}" \
             --no-git-checks \
+            --ignore-scripts \
             --json > stage-result.json
           node - <<'NODE'
           const fs = require('node:fs')
