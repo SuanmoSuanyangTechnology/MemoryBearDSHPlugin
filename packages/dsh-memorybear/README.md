@@ -33,17 +33,17 @@
 ## 安装
 
 ```sh
-dsh plugin --profile <你的 profile> add @redbear/dsh-memorybear@0.1.0-alpha.6
+dsh plugin --profile <你的 profile> add @redbear/dsh-memorybear@0.2.0-alpha
 ```
 
-桌面端在插件页的"包名或地址"里填同样的 `@redbear/dsh-memorybear@0.1.0-alpha.6`。
+桌面端在插件页的"包名或地址"里填同样的 `@redbear/dsh-memorybear@0.2.0-alpha`。
 
 - 一律写明版本号：pnpm 11 有新版冷却期（`minimumReleaseAge`），不带版本号时刚发布的版本可能被跳过，装成旧版。
 - `add` 会自动把插件加进 profile 的 `dsh.profile.bundles`，不用手动改 `package.json`。
 - `add` 底层是 PATH 里的 pnpm（npm 装的 dsh 不自带）。实测 pnpm 11 可用；没有 pnpm 时执行 `npm i -g pnpm@11`。
 - 从 alpha.1/alpha.2 升级：这两版依赖 `@deepseek-ai/dsh-tools`，会在 profile 的 `node_modules` 里多装一份，导致该 profile 所有工具调用报 `Cannot read properties of undefined (reading 'prepare')`，或插件卡在"等待依赖 tools"。alpha.3 去掉了这个依赖。升级后若 `<profile>/node_modules/@deepseek-ai/dsh-tools` 还在，先卸载插件再装 alpha.3，然后完全退出 dsh / 桌面端（Cmd+Q）再打开。
 
-也可以用 git 地址（`github:keeees/MemoryBearDSHPlugin#v0.1.0-alpha.6`）或 tgz 文件安装。本地开发时可以用 `link:` 依赖指向源码目录。
+也可以安装本地打包的 tgz：在仓库根目录执行 `pnpm --filter @redbear/dsh-memorybear pack`，把生成的 `redbear-dsh-memorybear-0.2.0-alpha.tgz` 交给 `dsh plugin add`。本地开发时可以用 `link:` 依赖指向源码目录（先 `pnpm build`）。
 
 ## 配置
 
