@@ -1,12 +1,13 @@
 name: Publish npm package
 
-# Trusted publishing (OIDC): no NPM_TOKEN secret is used. Configure each
-# package on npmjs.com under Settings -> Trusted Publisher -> GitHub Actions:
+# Trusted publishing (OIDC) with staged publishing: no NPM_TOKEN secret is used.
+# Configure each package on npmjs.com under Settings -> Trusted Publisher ->
+# GitHub Actions:
 #   organization/user: SuanmoSuanyangTechnology
 #   repository:        MemoryBearDSHPlugin
 #   workflow filename: publish-npm.yml
-# npm requires the package to exist before a trusted publisher can be set, so
-# the very first publish of a new package still needs a one-time token.
+# Leave "Publish directly" unchecked; staged publish is always allowed.
+# A maintainer must approve each staged version before it becomes public.
 on:
   push:
     tags:
@@ -16,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: Workspace package to publish
+        description: Workspace package to stage
         required: true
         type: choice
         options:
@@ -79,7 +80,7 @@ jobs:
             echo "version=$version"
             echo "dist_tag=$dist_tag"
           } >> "$GITHUB_OUTPUT"
-          echo "Publishing $name@$version (dist-tag: $dist_tag)"
+          echo "Staging $name@$version (dist-tag: $dist_tag)"
 
       - run: pnpm install --frozen-lockfile
 
@@ -87,18 +88,38 @@ jobs:
 
       - run: pnpm test
 
-      - name: Publish to npm (trusted publishing)
+      - name: Stage package for npm
+        id: stage
         run: |
-          pnpm --filter "${{ steps.target.outputs.name }}" publish \
+          pnpm --filter "${{ steps.target.outputs.name }}" stage publish \
+            --registry=https://registry.npmjs.org \
             --access public \
             --tag "${{ steps.target.outputs.dist_tag }}" \
-            --provenance \
-            --no-git-checks
+            --no-git-checks \
+            --json > stage-result.json
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const raw = fs.readFileSync('stage-result.json', 'utf8').trim()
+          let stageId = ''
+          if (raw) {
+            const data = JSON.parse(raw)
+            const staged = Object.values(data)[0] ?? {}
+            stageId = staged.stageId ?? ''
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `stage_id=${stageId}\n`)
+          console.log(stageId ? `staged with id ${stageId}` : 'staged (no stage id in output)')
+          NODE
 
       - name: Job summary
         run: |
           {
-            echo "### Published \`${{ steps.target.outputs.name }}@${{ steps.target.outputs.version }}\`"
+            echo "### Staged \`${{ steps.target.outputs.name }}@${{ steps.target.outputs.version }}\`"
             echo ""
             echo "dist-tag: \`${{ steps.target.outputs.dist_tag }}\`"
+            echo ""
+            if [ -n "${{ steps.stage.outputs.stage_id }}" ]; then
+              echo "stage id: \`${{ steps.stage.outputs.stage_id }}\`"
+              echo ""
+            fi
+            echo "Approve it on npmjs.com or with \`pnpm stage approve <stage-id>\`; nothing is public until then."
           } >> "$GITHUB_STEP_SUMMARY"
