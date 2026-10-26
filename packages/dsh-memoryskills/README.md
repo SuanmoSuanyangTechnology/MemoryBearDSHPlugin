@@ -12,7 +12,7 @@ MemorySkills 是 MemoryBear 的个人用户入口：用邮箱验证码登录 Por
 ## 安装
 
 ```sh
-dsh plugin --profile <你的 profile> add @redbear/dsh-memoryskills@0.1.0-alpha.2
+dsh plugin --profile <你的 profile> add @redbear/dsh-memoryskills@0.2.0-alpha
 ```
 
 ## 配置
