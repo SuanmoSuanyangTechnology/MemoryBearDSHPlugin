@@ -4,7 +4,7 @@
  * @module dsh-memoryskills/services/transcript
  */
 import { WRITE_MAX_CHARS } from '../constants.js';
-import { clip } from '@redbear/dsh-memory-core';
+import { clip } from '@redbearai/dsh-memory-core';
 
 /** One completed turn collected from the session event log. */
 export interface CompletedTurn {

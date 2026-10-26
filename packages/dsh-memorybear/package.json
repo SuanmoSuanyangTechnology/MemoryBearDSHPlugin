@@ -1,5 +1,5 @@
 {
-  "name": "@redbear/dsh-memorybear",
+  "name": "@redbearai/dsh-memorybear",
   "version": "0.2.0-alpha",
   "description": "MemoryBear long-term memory for DeepSeek Harness: per-turn recall, end-of-turn write, and a memory_search tool",
   "icon": "./icon.png",
@@ -60,8 +60,8 @@
     }
   },
   "scripts": {
-    "build": "pnpm --filter @redbear/dsh-memory-core run build && tsx scripts/build.ts",
-    "typecheck": "pnpm --filter @redbear/dsh-memory-core run build && tsc -p tsconfig.json",
+    "build": "pnpm --filter @redbearai/dsh-memory-core run build && tsx scripts/build.ts",
+    "typecheck": "pnpm --filter @redbearai/dsh-memory-core run build && tsc -p tsconfig.json",
     "test": "pnpm run build && tsx --test test/api.test.ts test/client-page.test.ts test/write-modes.test.ts",
     "mock": "tsx scripts/mock-memorybear.ts",
     "dsh": "tsx scripts/run-dsh.ts",
@@ -69,7 +69,7 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "~3.18.5",
-    "@redbear/dsh-memory-core": "workspace:^"
+    "@redbearai/dsh-memory-core": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "22.19.1",

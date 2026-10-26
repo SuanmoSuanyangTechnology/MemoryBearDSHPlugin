@@ -3,7 +3,7 @@
  *
  * @module dsh-memorybear/services/render
  */
-import { clip } from '@redbear/dsh-memory-core';
+import { clip } from '@redbearai/dsh-memory-core';
 
 /** A preference returned by the preference engine. */
 export interface Preference {

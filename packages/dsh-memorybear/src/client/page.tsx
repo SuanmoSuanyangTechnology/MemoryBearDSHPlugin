@@ -4,7 +4,7 @@
  * @module dsh-memorybear/client/page
  */
 import { useEffect, useSyncExternalStore, type ChangeEvent, type ReactNode } from 'react';
-import { fill, type ConfigController, type PageComponent, type PageProps } from '@redbear/dsh-memory-core/client';
+import { fill, type ConfigController, type PageComponent, type PageProps } from '@redbearai/dsh-memory-core/client';
 import { Checkbox, Field, SwitchField, TextInput } from './components/form.js';
 import { FIELDS, SEARCH_MODES } from './form-schema.js';
 

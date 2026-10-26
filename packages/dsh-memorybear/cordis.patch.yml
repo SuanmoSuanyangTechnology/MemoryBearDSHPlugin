@@ -8,4 +8,4 @@
 #     # apiKeyEnv: MEMORYBEAR_API_KEY          # key is read from this env var, never from disk
 - insert:
     - id: memorybear-memory
-      name: '@redbear/dsh-memorybear'
+      name: '@redbearai/dsh-memorybear'

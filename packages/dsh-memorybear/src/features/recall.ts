@@ -16,7 +16,7 @@ import {
     pluginUserMessage,
     type Message,
     type PluginContext,
-} from '@redbear/dsh-memory-core';
+} from '@redbearai/dsh-memory-core';
 import { recentContext } from '../dsh/session.js';
 import type { MemoryBearClient, PreferenceContextMessage } from '../services/memorybear-client.js';
 import { renderPreferences, renderProfileMessage, renderRecallMessage } from '../services/render.js';

@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import type { ClientContext, ConfigScope, ConfigScopeSnapshot } from '@redbear/dsh-memory-core/client';
+import type { ClientContext, ConfigScope, ConfigScopeSnapshot } from '@redbearai/dsh-memory-core/client';
 
 // ── load the built bundle through a fake module loader ──
 interface ElementNode {
@@ -126,7 +126,7 @@ async function run(label: string, fn: () => void | Promise<void>): Promise<void>
 }
 
 await run('page registers on the bundle key while the entry is served', () => {
-    assert.equal(pageKey, '@redbear/dsh-memoryskills');
+    assert.equal(pageKey, '@redbearai/dsh-memoryskills');
     assert.equal(JSON.stringify(servedNs), '["memoryskills-memory"]');
     assert.equal(Page!({ t: (key) => key, view: 'summary' }), 'summary');
 });

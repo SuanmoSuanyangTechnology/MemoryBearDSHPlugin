@@ -1,10 +1,10 @@
 /**
- * Browser half of @redbear/dsh-memorybear: the bundle's configuration page in
+ * Browser half of @redbearai/dsh-memorybear: the bundle's configuration page in
  * dsh web's Plugins panel and the right-sidebar 记忆 tab.
  *
  * @module dsh-memorybear/client
  */
-import { ConfigController, fieldNamesOf } from '@redbear/dsh-memory-core/client';
+import { ConfigController, fieldNamesOf } from '@redbearai/dsh-memory-core/client';
 import { DEFAULT_KEY_REF, NS, PKG, SETTINGS_NS } from './constants.js';
 import { FIELDS } from './form-schema.js';
 import { en, zh } from './locale/index.js';

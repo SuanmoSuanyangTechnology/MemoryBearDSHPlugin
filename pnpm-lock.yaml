@@ -28,7 +28,7 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ~3.18.5
         version: 3.18.5
-      '@redbear/dsh-memory-core':
+      '@redbearai/dsh-memory-core':
         specifier: workspace:^
         version: link:../dsh-memory-core
     devDependencies:
@@ -53,7 +53,7 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: ~3.18.5
         version: 3.18.5
-      '@redbear/dsh-memory-core':
+      '@redbearai/dsh-memory-core':
         specifier: workspace:^
         version: link:../dsh-memory-core
     devDependencies:

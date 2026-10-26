@@ -1,10 +1,10 @@
 /**
- * Browser half of @redbear/dsh-memoryskills: the bundle's configuration page in
+ * Browser half of @redbearai/dsh-memoryskills: the bundle's configuration page in
  * dsh web's Plugins panel.
  *
  * @module dsh-memoryskills/client
  */
-import { ConfigController, fieldNamesOf, type ClientContext } from '@redbear/dsh-memory-core/client';
+import { ConfigController, fieldNamesOf, type ClientContext } from '@redbearai/dsh-memory-core/client';
 import { DEFAULT_KEY_REF, NS, PKG, SETTINGS_NS } from './constants.js';
 import { FIELDS } from './form-schema.js';
 import { en, zh } from './locale/index.js';

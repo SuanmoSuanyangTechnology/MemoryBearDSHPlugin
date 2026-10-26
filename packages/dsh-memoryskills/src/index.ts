@@ -13,11 +13,11 @@
  *    Portal's REST write endpoint according to `writeMode`.
  * 3. Tool — `memory_search`, backed by the Portal's MCP `read_memory`.
  *
- * @module @redbear/dsh-memoryskills
+ * @module @redbearai/dsh-memoryskills
  */
 import { INJECT, NAME } from './constants.js';
 import { snapshotConfig, type PluginConfig } from './config.js';
-import { errorText, resolveCredential, type PluginContext } from '@redbear/dsh-memory-core';
+import { errorText, resolveCredential, type PluginContext } from '@redbearai/dsh-memory-core';
 import { installRecall } from './features/recall.js';
 import { installTools } from './features/tools.js';
 import { installWrite } from './features/write.js';

@@ -9,10 +9,10 @@
  * @module dsh-memorybear/services/api
  */
 
-import type { QueryParams } from '@redbear/dsh-memory-core';
+import type { QueryParams } from '@redbearai/dsh-memory-core';
 
-export { buildApiUrl, normalizeBaseUrl } from '@redbear/dsh-memory-core';
-export type { QueryParams, QueryValue } from '@redbear/dsh-memory-core';
+export { buildApiUrl, normalizeBaseUrl } from '@redbearai/dsh-memory-core';
+export type { QueryParams, QueryValue } from '@redbearai/dsh-memory-core';
 
 /** Paths under the configured V1 base URL (which normally ends in `/v1`). */
 export const API_PATHS = {

@@ -4,19 +4,19 @@ Long-term memory plugins for [DeepSeek Harness (dsh)](https://www.npmjs.com/pack
 
 | Package | Backend | What you configure |
 |---|---|---|
-| [`packages/dsh-memorybear`](packages/dsh-memorybear) — `@redbear/dsh-memorybear` | MemoryBear Enterprise V1 API | API base URL, workspace API key, `end_user_id` |
-| [`packages/dsh-memoryskills`](packages/dsh-memoryskills) — `@redbear/dsh-memoryskills` | MemorySkills Portal (MCP `read_memory` + REST write) | Portal URL, personal `sk-mem-` key |
+| [`packages/dsh-memorybear`](packages/dsh-memorybear) — `@redbearai/dsh-memorybear` | MemoryBear Enterprise V1 API | API base URL, workspace API key, `end_user_id` |
+| [`packages/dsh-memoryskills`](packages/dsh-memoryskills) — `@redbearai/dsh-memoryskills` | MemorySkills Portal (MCP `read_memory` + REST write) | Portal URL, personal `sk-mem-` key |
 
-`packages/dsh-memory-core` (`@redbear/dsh-memory-core`) is the internal shared package: dsh Host adapter, HTTP URL builder and the browser config-form framework. Do not install it directly; the two plugins depend on it.
+`packages/dsh-memory-core` (`@redbearai/dsh-memory-core`) is the internal shared package: dsh Host adapter, HTTP URL builder and the browser config-form framework. Do not install it directly; the two plugins depend on it.
 
 Both plugins load a user profile at session start, expose a `memory_search` tool, write conversations back to memory (per turn / every N turns / on idle), and ship a config form on the dsh Plugins page.
 
 Install one of them, not both: each registers its own `memory_search` tool.
 
 ```bash
-dsh plugin --profile <profile> add @redbear/dsh-memorybear
+dsh plugin --profile <profile> add @redbearai/dsh-memorybear
 # or
-dsh plugin --profile <profile> add @redbear/dsh-memoryskills
+dsh plugin --profile <profile> add @redbearai/dsh-memoryskills
 ```
 
 ## Development

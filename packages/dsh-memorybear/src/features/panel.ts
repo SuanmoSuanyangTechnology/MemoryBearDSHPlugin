@@ -11,7 +11,7 @@
  */
 import { INSIGHTS_PATH, NAME } from '../constants.js';
 import { isTimeZone, missingConfig, type ConfigSnapshot } from '../config.js';
-import type { PluginContext } from '@redbear/dsh-memory-core';
+import type { PluginContext } from '@redbearai/dsh-memory-core';
 import type { Insights, MemoryBearClient } from '../services/memorybear-client.js';
 
 export interface PanelDeps {

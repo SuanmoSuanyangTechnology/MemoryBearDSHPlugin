@@ -3,7 +3,7 @@
  *
  * @module dsh-memorybear/client/types
  */
-import type { ClientContext } from '@redbear/dsh-memory-core/client';
+import type { ClientContext } from '@redbearai/dsh-memory-core/client';
 
 export interface SidebarTabDefinition {
     id: string;

@@ -6,7 +6,7 @@
  */
 import { NAME, TOOL_SEARCH_SWITCHES, type ToolSearchSwitch } from '../constants.js';
 import type { ConfigSnapshot } from '../config.js';
-import { defineTool, type Disposable, type PluginContext, type ToolsService } from '@redbear/dsh-memory-core';
+import { defineTool, type Disposable, type PluginContext, type ToolsService } from '@redbearai/dsh-memory-core';
 import type { MemoryBearClient } from '../services/memorybear-client.js';
 import { renderPreferences } from '../services/render.js';
 

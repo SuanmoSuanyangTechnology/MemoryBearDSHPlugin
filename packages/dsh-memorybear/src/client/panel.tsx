@@ -5,7 +5,7 @@
  * @module dsh-memorybear/client/panel
  */
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
-import { fill, type Translate } from '@redbear/dsh-memory-core/client';
+import { fill, type Translate } from '@redbearai/dsh-memory-core/client';
 import { INSIGHTS_PATH, NS, PANEL_ID, PKG } from './constants.js';
 import type { MemoryBearPanelContext } from './types.js';
 

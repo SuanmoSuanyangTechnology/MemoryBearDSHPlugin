@@ -1,8 +1,8 @@
 /**
- * Server-side entry of @redbear/dsh-memory-core: dsh host types/helpers and the
+ * Server-side entry of @redbearai/dsh-memory-core: dsh host types/helpers and the
  * shared HTTP URL builder. No runtime dependencies.
  *
- * @module @redbear/dsh-memory-core
+ * @module @redbearai/dsh-memory-core
  */
 export * from './dsh/types.js';
 export * from './dsh/credentials.js';

@@ -14,11 +14,11 @@
  * Memory is keyed by ONE fixed `endUserId` (one dsh user = one MemoryBear end
  * user). Subagent sessions are skipped for recall and write.
  *
- * @module @redbear/dsh-memorybear
+ * @module @redbearai/dsh-memorybear
  */
 import { INJECT, NAME } from './constants.js';
 import { missingConfig, snapshotConfig, type PluginConfig } from './config.js';
-import { errorText, resolveCredential, type PluginContext } from '@redbear/dsh-memory-core';
+import { errorText, resolveCredential, type PluginContext } from '@redbearai/dsh-memory-core';
 import { installPanel } from './features/panel.js';
 import { installRecall } from './features/recall.js';
 import { installTools } from './features/tools.js';

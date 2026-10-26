@@ -1,6 +1,6 @@
 /**
  * Editable fields of the MemoryBear configuration form. Parsing/formatting and
- * the generic controller live in @redbear/dsh-memory-core/client.
+ * the generic controller live in @redbearai/dsh-memory-core/client.
  *
  * @module dsh-memorybear/client/form-schema
  */
@@ -9,7 +9,7 @@ import type {
     FieldSpecMap,
     FieldStatesOf,
     FieldValueOf,
-} from '@redbear/dsh-memory-core/client';
+} from '@redbearai/dsh-memory-core/client';
 
 /** Retrieval modes offered by MemoryBear. */
 export const SEARCH_MODES = ['express', 'quick', 'normal', 'deep'] as const;

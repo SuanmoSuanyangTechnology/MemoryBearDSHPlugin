@@ -16,7 +16,7 @@ import type {
     SessionEvent,
     ToolRegistration,
     ToolsService,
-} from '@redbear/dsh-memory-core';
+} from '@redbearai/dsh-memory-core';
 import { INSIGHTS_PATH } from '../src/constants.js';
 import { API_PATHS } from '../src/services/api.js';
 import { apply } from '../src/index.js';

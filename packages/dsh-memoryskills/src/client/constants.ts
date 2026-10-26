@@ -4,7 +4,7 @@
  * @module dsh-memoryskills/client/constants
  */
 /** Package name: the key of this bundle's `plugins.bundle.config` entry. */
-export const PKG = '@redbear/dsh-memoryskills';
+export const PKG = '@redbearai/dsh-memoryskills';
 
 /** Config form namespace = the Host profile entry id (cordis.patch.yml). */
 export const SETTINGS_NS = 'memoryskills-memory';

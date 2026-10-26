@@ -5,7 +5,7 @@
  */
 import { NAME, TOOL_SEARCH_SWITCHES, type SearchSwitch } from '../constants.js';
 import type { ConfigSnapshot } from '../config.js';
-import { defineTool, type Disposable, type PluginContext, type ToolsService } from '@redbear/dsh-memory-core';
+import { defineTool, type Disposable, type PluginContext, type ToolsService } from '@redbearai/dsh-memory-core';
 import type { PortalClient } from '../services/portal-client.js';
 
 export interface ToolsDeps {

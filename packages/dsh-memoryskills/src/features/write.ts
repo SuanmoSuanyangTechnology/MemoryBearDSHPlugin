@@ -15,7 +15,7 @@ import {
     type PluginContext,
     type Session,
     type SessionEvent,
-} from '@redbear/dsh-memory-core';
+} from '@redbearai/dsh-memory-core';
 import { renderTranscripts, type CompletedTurn } from '../services/transcript.js';
 import type { PortalClient } from '../services/portal-client.js';
 

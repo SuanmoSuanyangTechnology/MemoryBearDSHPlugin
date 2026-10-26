@@ -5,7 +5,7 @@
  */
 
 /** Package name: the key of this bundle's `plugins.bundle.config` entry. */
-export const PKG = '@redbear/dsh-memorybear';
+export const PKG = '@redbearai/dsh-memorybear';
 
 /** Config form namespace = the Host profile entry id (cordis.patch.yml). */
 export const SETTINGS_NS = 'memorybear-memory';

@@ -4,9 +4,9 @@
  * @module dsh-memorybear/dsh/session
  */
 import { PREFERENCE_CONTEXT_MAX_CHARS } from '../constants.js';
-import { isHumanMessage, messageText } from '@redbear/dsh-memory-core';
+import { isHumanMessage, messageText } from '@redbearai/dsh-memory-core';
 import type { PreferenceContextMessage } from '../services/memorybear-client.js';
-import type { Message, Session } from '@redbear/dsh-memory-core';
+import type { Message, Session } from '@redbearai/dsh-memory-core';
 
 /**
  * The last completed exchanges before the current turn, oldest first, for

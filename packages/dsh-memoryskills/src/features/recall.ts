@@ -15,7 +15,7 @@ import {
     pluginUserMessage,
     type Message,
     type PluginContext,
-} from '@redbear/dsh-memory-core';
+} from '@redbearai/dsh-memory-core';
 import { profileText } from '../services/transcript.js';
 import { renderProfileMessage, renderRecallMessage } from '../services/render.js';
 import { normalizeBaseUrl } from '../services/api.js';

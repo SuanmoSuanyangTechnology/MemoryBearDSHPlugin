@@ -18,7 +18,7 @@ import {
     type PluginContext,
     type Session,
     type SessionEvent,
-} from '@redbear/dsh-memory-core';
+} from '@redbearai/dsh-memory-core';
 import { fileKind } from '../services/payloads.js';
 import type { MemoryBearClient, MemoryBearFile, WriteMessage } from '../services/memorybear-client.js';
 

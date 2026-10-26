@@ -3,7 +3,7 @@
  *
  * @module dsh-memoryskills/services/render
  */
-import { clip } from '@redbear/dsh-memory-core';
+import { clip } from '@redbearai/dsh-memory-core';
 
 /** Wrap the session-start profile with provenance and a do-not-obey framing. */
 export function renderProfileMessage(profile: string, maxChars: number, toolEnabled: boolean): string {

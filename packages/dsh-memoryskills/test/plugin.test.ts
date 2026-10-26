@@ -9,7 +9,7 @@ import { createServer, type Server } from 'node:http';
 import { after, test } from 'node:test';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Config, snapshotConfig, type ConfigSnapshot, type PluginConfig } from '../src/config.js';
-import type { Message, PluginContext, Session, SessionEvent, ToolRegistration } from '@redbear/dsh-memory-core';
+import type { Message, PluginContext, Session, SessionEvent, ToolRegistration } from '@redbearai/dsh-memory-core';
 import { apply } from '../src/index.js';
 import { API_PATHS } from '../src/services/api.js';
 import { parseRpcBody, type JsonRpcReply } from '../src/services/portal-client.js';

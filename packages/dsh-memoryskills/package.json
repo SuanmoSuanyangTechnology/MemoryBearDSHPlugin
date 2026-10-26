@@ -1,5 +1,5 @@
 {
-  "name": "@redbear/dsh-memoryskills",
+  "name": "@redbearai/dsh-memoryskills",
   "version": "0.2.0-alpha",
   "description": "MemorySkills long-term memory for DeepSeek Harness: sign in with email, paste one sk-mem- key, no MemoryBear tenant setup",
   "icon": "./icon.png",
@@ -61,15 +61,15 @@
     }
   },
   "scripts": {
-    "build": "pnpm --filter @redbear/dsh-memory-core run build && tsx scripts/build.ts",
-    "typecheck": "pnpm --filter @redbear/dsh-memory-core run build && tsc -p tsconfig.json",
+    "build": "pnpm --filter @redbearai/dsh-memory-core run build && tsx scripts/build.ts",
+    "typecheck": "pnpm --filter @redbearai/dsh-memory-core run build && tsc -p tsconfig.json",
     "test": "pnpm run build && tsx --test test/api.test.ts test/plugin.test.ts test/client-page.test.ts",
     "dsh": "tsx scripts/run-dsh.ts",
     "prepack": "pnpm run build"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "~3.18.5",
-    "@redbear/dsh-memory-core": "workspace:^"
+    "@redbearai/dsh-memory-core": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "22.19.1",

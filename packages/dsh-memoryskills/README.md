@@ -12,7 +12,7 @@ MemorySkills 是 MemoryBear 的个人用户入口：用邮箱验证码登录 Por
 ## 安装
 
 ```sh
-dsh plugin --profile <你的 profile> add @redbear/dsh-memoryskills@0.2.0-alpha
+dsh plugin --profile <你的 profile> add @redbearai/dsh-memoryskills@0.2.0-alpha
 ```
 
 ## 配置
@@ -40,7 +40,7 @@ dsh plugin --profile <你的 profile> add @redbear/dsh-memoryskills@0.2.0-alpha
 
 ## 开发与验证
 
-源码全部是 TypeScript 6.x，位于 `src/`；dsh Host 适配层和表单框架来自 `@redbear/dsh-memory-core`。所有 Portal 路由与请求体集中在 `src/services/api.ts`。构建产物在 `lib/`（不提交）：
+源码全部是 TypeScript 6.x，位于 `src/`；dsh Host 适配层和表单框架来自 `@redbearai/dsh-memory-core`。所有 Portal 路由与请求体集中在 `src/services/api.ts`。构建产物在 `lib/`（不提交）：
 
 - `lib/index.js`：Host 半边打成单个 ESM 文件
 - `lib/client.js`：浏览器半边打成 dsh 客户端加载器要求的 lazy-CJS bundle

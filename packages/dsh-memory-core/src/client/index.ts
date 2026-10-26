@@ -1,8 +1,8 @@
 /**
- * Browser-side entry of @redbear/dsh-memory-core: client types, form schema
+ * Browser-side entry of @redbearai/dsh-memory-core: client types, form schema
  * helpers and the generic config controller.
  *
- * @module @redbear/dsh-memory-core/client
+ * @module @redbearai/dsh-memory-core/client
  */
 export * from './types.js';
 export * from './form-schema.js';

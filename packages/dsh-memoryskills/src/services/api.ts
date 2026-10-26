@@ -7,10 +7,10 @@
  * @module dsh-memoryskills/services/api
  */
 import { CLIENT_VERSION, NAME } from '../constants.js';
-import type { QueryParams } from '@redbear/dsh-memory-core';
+import type { QueryParams } from '@redbearai/dsh-memory-core';
 
-export { buildApiUrl, normalizeBaseUrl } from '@redbear/dsh-memory-core';
-export type { QueryParams, QueryValue } from '@redbear/dsh-memory-core';
+export { buildApiUrl, normalizeBaseUrl } from '@redbearai/dsh-memory-core';
+export type { QueryParams, QueryValue } from '@redbearai/dsh-memory-core';
 
 /** Portal paths. The MCP trailing slash is required (else 307). */
 export const API_PATHS = {

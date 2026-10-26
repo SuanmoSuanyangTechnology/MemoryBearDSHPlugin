@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import type { ConfigScope, ConfigScopeSnapshot } from '@redbear/dsh-memory-core/client';
+import type { ConfigScope, ConfigScopeSnapshot } from '@redbearai/dsh-memory-core/client';
 import type { MemoryBearClientContext, SidebarTabDefinition } from '../src/client/types.js';
 
 // ── load the built bundle through a fake module loader ──
@@ -93,7 +93,7 @@ const ctx = {
             sidebarRightTabs: { register: (definition: SidebarTabDefinition) => { panelType = definition; return () => {}; } },
             slots: {
                 inject: (name: string, fn: () => void) => { assert.equal(name, 'sidebar.right.pane.tab'); fn(); },
-                register: (options: { key: string }, component: unknown) => { assert.equal(options.key, '@redbear/dsh-memorybear/panel'); Panel = component; return () => {}; },
+                register: (options: { key: string }, component: unknown) => { assert.equal(options.key, '@redbearai/dsh-memorybear/panel'); Panel = component; return () => {}; },
             },
         });
     },
@@ -110,13 +110,13 @@ const ctx = {
     },
     slots: {
         inject: (name: string, callback: () => void) => { assert.equal(name, 'plugins.bundle.config'); callback(); return () => {}; },
-        register: (options: { key: string }, component: typeof Page) => { assert.equal(options.key, '@redbear/dsh-memorybear'); Page = component; return () => {}; },
+        register: (options: { key: string }, component: typeof Page) => { assert.equal(options.key, '@redbearai/dsh-memorybear'); Page = component; return () => {}; },
     },
 } as unknown as MemoryBearClientContext;
 mod.apply(ctx);
 assert.ok(Page, 'page registered');
 assert.ok(Panel, 'memory panel body registered');
-assert.equal(panelType?.id, '@redbear/dsh-memorybear/panel');
+assert.equal(panelType?.id, '@redbearai/dsh-memorybear/panel');
 assert.equal(panelType?.kind, 'memorybear');
 assert.equal(panelType?.title(), 'panelTitle');
 const t = (key: string) => key;

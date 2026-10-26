@@ -4,7 +4,7 @@
  * @module dsh-memorybear/client/components/form
  */
 import type { ChangeEvent, ReactNode } from 'react';
-import type { ConfigController, FieldState, PageProps } from '@redbear/dsh-memory-core/client';
+import type { ConfigController, FieldState, PageProps } from '@redbearai/dsh-memory-core/client';
 import type { FIELDS, BooleanFieldName, FieldStates } from '../form-schema.js';
 
 export interface FieldProps {
