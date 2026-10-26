@@ -1,5 +1,12 @@
 name: Publish npm package
 
+# Trusted publishing (OIDC): no NPM_TOKEN secret is used. Configure each
+# package on npmjs.com under Settings -> Trusted Publisher -> GitHub Actions:
+#   organization/user: SuanmoSuanyangTechnology
+#   repository:        MemoryBearDSHPlugin
+#   workflow filename: publish-npm.yml
+# npm requires the package to exist before a trusted publisher can be set, so
+# the very first publish of a new package still needs a one-time token.
 on:
   push:
     tags:
@@ -19,7 +26,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # npm provenance
+  id-token: write # OIDC token for npm trusted publishing and provenance
 
 jobs:
   publish:
@@ -80,9 +87,7 @@ jobs:
 
       - run: pnpm test
 
-      - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm (trusted publishing)
         run: |
           pnpm --filter "${{ steps.target.outputs.name }}" publish \
             --access public \
