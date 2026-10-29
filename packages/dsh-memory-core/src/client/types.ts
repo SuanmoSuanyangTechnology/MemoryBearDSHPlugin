@@ -49,9 +49,20 @@ export interface ConfigScope {
     mutate(operations: ConfigMutation[]): Promise<void>;
 }
 
+export interface SettingsNamespaceView {
+    ns: string;
+    [key: string]: unknown;
+}
+
+export interface SettingsDescribeFace {
+    acceptView(view: SettingsNamespaceView): void;
+    ensure(): Promise<void>;
+}
+
 export interface ConfigFormsService {
     get(namespace: string): ConfigScope;
     whileServed(namespaces: string[], register: () => void): () => void;
+    describe(): SettingsDescribeFace;
 }
 
 export interface SlotOptions {
@@ -76,6 +87,9 @@ export interface RemoteService {
     credentials: {
         describe(refs: string[]): Promise<CredentialResponse>;
         set(ref: string, value: string): Promise<CredentialResponse>;
+    };
+    settings: {
+        describe(): Promise<{ ok: boolean; value?: { namespaces: SettingsNamespaceView[] }; error?: { message?: string } }>;
     };
 }
 

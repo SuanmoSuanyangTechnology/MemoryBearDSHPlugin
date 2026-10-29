@@ -4,7 +4,7 @@
  *
  * @module dsh-memorybear/client
  */
-import { ConfigController, fieldNamesOf } from '@redbearai/dsh-memory-core/client';
+import { ConfigController, fieldNamesOf, refreshSettingsNamespace } from '@redbearai/dsh-memory-core/client';
 import { DEFAULT_KEY_REF, NS, PKG, SETTINGS_NS } from './constants.js';
 import { FIELDS } from './form-schema.js';
 import { en, zh } from './locale/index.js';
@@ -16,7 +16,7 @@ import type { MemoryBearClientContext } from './types.js';
 installStyles();
 
 /** Required client services. */
-export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'configForms'];
+export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'remote.settings', 'configForms'];
 
 /** Register the dictionaries, the configuration page and the optional memory panel. */
 export function apply(ctx: MemoryBearClientContext): void {
@@ -30,6 +30,14 @@ export function apply(ctx: MemoryBearClientContext): void {
         fieldNamesOf(FIELDS),
         { defaultKeyRef: DEFAULT_KEY_REF },
     );
+    let refreshingSettings = false;
+    const refreshSettings = (): void => {
+        if (refreshingSettings || controller.getSnapshot().available) return;
+        refreshingSettings = true;
+        void refreshSettingsNamespace(ctx, SETTINGS_NS).finally(() => { refreshingSettings = false; });
+    };
+    refreshSettings();
+    ctx.effect(() => ctx.remote.$on('plugin-manager/changed', refreshSettings), `${PKG}: settings refresh`);
     ctx.effect(() => () => controller.dispose(), `${PKG}: form subscription`);
     ctx.effect(() => ctx.remote.$on('credentials/reference-updated', (ref: unknown) => {
         if (typeof ref === 'string') controller.refreshCredential(ref);

@@ -4,7 +4,7 @@
  *
  * @module dsh-memoryskills/client
  */
-import { ConfigController, fieldNamesOf, type ClientContext } from '@redbearai/dsh-memory-core/client';
+import { ConfigController, fieldNamesOf, refreshSettingsNamespace, type ClientContext } from '@redbearai/dsh-memory-core/client';
 import { DEFAULT_KEY_REF, NS, PKG, SETTINGS_NS } from './constants.js';
 import { FIELDS } from './form-schema.js';
 import { en, zh } from './locale/index.js';
@@ -14,7 +14,7 @@ import { installStyles } from './styles.js';
 installStyles();
 
 /** Required client services. */
-export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'configForms'];
+export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'remote.settings', 'configForms'];
 
 /** Register the dictionaries and this bundle's configuration page. */
 export function apply(ctx: ClientContext): void {
@@ -29,6 +29,14 @@ export function apply(ctx: ClientContext): void {
             isKeyInvalid: (key) => key !== '' && !key.startsWith('sk-mem-'),
         },
     );
+    let refreshingSettings = false;
+    const refreshSettings = (): void => {
+        if (refreshingSettings || controller.getSnapshot().available) return;
+        refreshingSettings = true;
+        void refreshSettingsNamespace(ctx, SETTINGS_NS).finally(() => { refreshingSettings = false; });
+    };
+    refreshSettings();
+    ctx.effect(() => ctx.remote.$on('plugin-manager/changed', refreshSettings), `${PKG}: settings refresh`);
     ctx.effect(() => () => controller.dispose(), `${PKG}: form subscription`);
     ctx.effect(() => ctx.remote.$on('credentials/reference-updated', (ref: unknown) => {
         if (typeof ref === 'string') controller.refreshCredential(ref);
