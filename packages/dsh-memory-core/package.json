@@ -1,6 +1,6 @@
 {
   "name": "@redbearai/dsh-memory-core",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Shared Cordis/dsh host adapter, HTTP URL builders and browser form framework for the MemoryBear plugins",
   "repository": {
     "type": "git",
