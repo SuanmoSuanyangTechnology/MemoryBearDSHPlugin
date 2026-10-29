@@ -26,6 +26,8 @@
 
 右侧边栏"记忆"标签页的数据由插件在 dsh 服务端注册的 `GET /api/memorybear/insights` 转发，dsh 负责登录校验，API key 不会发到浏览器。
 
+更新检查另请求 `GET https://registry.npmjs.org/@redbearai/dsh-memorybear/latest`，只读取版本号；`updateCheck: false` 可关闭。发现新版本时配置页会提示并提供“复制更新命令”按钮，命令里的 `PROFILE` 需替换为实际 profile 名。
+
 插件不会创建 end_user，需要事先在 MemoryBear 控制台或管理接口建好。所有 MemoryBear 路由、查询参数和请求体集中在 `src/services/api.ts`。
 
 请求头带 `Authorization: Bearer <key>`。子代理（subagent）会话不召回也不写入。
@@ -90,6 +92,7 @@ dsh plugin --profile <你的 profile> add @redbearai/dsh-memorybear@0.2.2
 | `maxAttachmentMB` | `20` | 单个附件超过这个大小就跳过 |
 | `panel` | `true` | 右侧边栏"记忆"标签页（记忆数、记忆标签、近期情绪、情绪记录、画像、记忆主题） |
 | `panelTimeoutMs` | `20000` | 标签页每个数据请求的超时 |
+| `updateCheck` | `true` | 启动和打开配置页时查询 npm registry；只提示新版本，不自动安装 |
 | `recallTimeoutMs` / `toolTimeoutMs` / `writeTimeoutMs` | `8000` / `30000` / `15000` | 各请求超时 |
 | `maxRecallChars` | `4000` | 注入的记忆文本上限 |
 | `minQueryChars` | `2` | 短于这个长度的输入（如"好""继续"）不召回 |
@@ -127,7 +130,7 @@ mock 服务预置的记忆是"最喜欢的颜色是靛蓝色"。`mock.jsonl` 里
 | `src/index.ts` | 服务端插件入口：组装各 feature，导出 `name` / `inject` / `Config` / `apply` |
 | `src/config.ts` | 配置 schema、volatile 快照、连接字段校验 |
 | `src/dsh/session.ts` | 从会话事件日志读取偏好召回所需的上下文 |
-| `src/features/` | 召回、写入、工具、记忆面板四个功能模块 |
+| `src/features/` | 召回、写入、工具、记忆面板、更新检查五个功能模块 |
 | `src/services/` | MemoryBear 路由与请求构造（`api.ts`）、V1 客户端、画像解析、面板数据整形 |
 | `src/client/` | 网页 Plugins 配置页和右侧栏记忆面板（打包成 `lib/client.js`） |
 | `src/client/locale/` | 配置页与记忆面板文案 JSON，构建时打进 `lib/client.js` |

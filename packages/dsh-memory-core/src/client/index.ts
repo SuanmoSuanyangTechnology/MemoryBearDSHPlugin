@@ -8,3 +8,4 @@ export * from './types.js';
 export * from './form-schema.js';
 export * from './config-controller.js';
 export * from './utils.js';
+export * from './update.js';

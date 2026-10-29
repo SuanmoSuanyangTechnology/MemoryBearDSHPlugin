@@ -17,7 +17,7 @@ import type {
     ToolRegistration,
     ToolsService,
 } from '@redbearai/dsh-memory-core';
-import { INSIGHTS_PATH } from '../src/constants.js';
+import { INSIGHTS_PATH, UPDATE_PATH } from '../src/constants.js';
 import { API_PATHS } from '../src/services/api.js';
 import { apply } from '../src/index.js';
 import { fileKind } from '../src/services/payloads.js';
@@ -58,7 +58,7 @@ function fakeHost(user: FakeHostOptions = {}): FakeHost {
     const handlers = new Map<string, (...args: any[]) => any>();
     const effects: Array<() => void> = [];
     const warnings: string[] = [];
-    const entry = { baseURL: mock.url, endUserId: 'u-1', apiKeyEnv: 'MB_TEST_KEY', ...user.base };
+    const entry = { updateCheck: false, baseURL: mock.url, endUserId: 'u-1', apiKeyEnv: 'MB_TEST_KEY', ...user.base };
     let values!: ConfigSnapshot;
     // Stand-in for the dsh 0.2 Loader: the profile entry is validated by the
     // schema, then each live field is a stable `{ get() }` reference whose
@@ -102,14 +102,19 @@ function fakeHost(user: FakeHostOptions = {}): FakeHost {
         },
         inject: (deps: string[], callback: (context: unknown) => void) => {
             if (deps[0] === 'connection') {
-                const routes = new Map<string, ConnectionRoute>();
                 if (user.connection) {
                     callback({
-                        connection: { fetch: { register: (route: ConnectionRoute) => { routes.set(route.path, route); return async () => { routes.delete(route.path); }; } } },
+                        connection: {
+                            fetch: {
+                                register: (route: ConnectionRoute) => {
+                                    connectionRoutes.set(route.path, route);
+                                    return async () => { connectionRoutes.delete(route.path); };
+                                },
+                            },
+                        },
                         effect: (effect: () => () => void) => { effects.push(effect()); },
                     });
                 }
-                connectionRoutes = routes;
                 return;
             }
             assert.deepEqual(deps, ['tools']);
@@ -384,6 +389,10 @@ test('insights route: profile, emotion overview/timeline/tags with browser time 
     const host = fakeHost({ connection: true });
     const route = host.route(INSIGHTS_PATH);
     assert.ok(route, 'route registered when connection is present');
+    const updateRoute = host.route(UPDATE_PATH);
+    assert.ok(updateRoute, 'update route registered when connection is present');
+    const update = await (await updateRoute.fetch(new Request('http://127.0.0.1/x'))).json() as { enabled: boolean };
+    assert.equal(update.enabled, false, 'update check is disabled in this fake profile');
     assert.deepEqual(route.methods, ['GET']);
     const res = await route.fetch(new Request(`http://127.0.0.1${INSIGHTS_PATH}?tz=Asia/Shanghai`));
     assert.equal(res.status, 200);

@@ -54,7 +54,7 @@ const mod = factory((id: string) => {
 
 // ── fake client services ──
 const base: Record<string, unknown> = {
-    portalURL: 'https://testmemoryskills.example', apiKeyEnv: 'MEMORYSKILLS_API_KEY',
+    portalURL: 'https://testmemoryskills.example', apiKeyEnv: 'MEMORYSKILLS_API_KEY', updateCheck: false,
     profile: true, recall: false, searchSwitch: 'express', tool: true, toolSearchSwitches: ['express', 'quick', 'normal', 'deep'],
     write: true, writeMode: 'batch', writeEveryTurns: 3, writeIdleMinutes: 10,
 };

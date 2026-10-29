@@ -37,6 +37,7 @@ dsh plugin --profile <你的 profile> add @redbearai/dsh-memoryskills@0.2.2
 | `write` | `true` | 是否写入 |
 | `writeMode` | `batch` | `turn` / `batch` / `idle` |
 | `tool` | `true` | 注册 `memory_search` |
+| `updateCheck` | `true` | 启动和打开配置页时查询 npm registry；只提示新版本，不自动安装，配置页提供复制更新命令按钮 |
 
 ## 开发与验证
 
@@ -65,7 +66,7 @@ MEMORYSKILLS_API_KEY=sk-mem-... pnpm dsh "帮我记一下我喜欢燕麦拿铁"
 |---|---|
 | `src/index.ts` | 服务端插件入口：组装 feature，导出 `name` / `inject` / `Config` / `apply` |
 | `src/config.ts` | 配置 schema、volatile 快照 |
-| `src/features/` | 召回、写入、工具三个功能模块 |
+| `src/features/` | 召回、写入、工具、更新检查四个功能模块 |
 | `src/services/` | Portal 路由与请求构造（`api.ts`）、MCP/REST 客户端、transcript、prompt 渲染 |
 | `src/client/` | 网页 Plugins 配置页（打包成 `lib/client.js`） |
 | `src/client/locale/` | 配置页文案 JSON，构建时打进 `lib/client.js` |

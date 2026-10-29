@@ -27,6 +27,7 @@ export const FIELDS = {
     writeMode: { kind: 'select', options: ['turn', 'batch', 'idle'] },
     writeEveryTurns: { kind: 'int', min: 1 },
     writeIdleMinutes: { kind: 'number', min: 0.1 },
+    updateCheck: { kind: 'bool' },
 } as const satisfies FieldSpecMap;
 
 export type FieldName = keyof typeof FIELDS;

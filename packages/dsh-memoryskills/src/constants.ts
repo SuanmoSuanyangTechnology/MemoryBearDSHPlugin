@@ -27,5 +27,8 @@ export const WRITE_MAX_CHARS = 8_000;
 /** Section name that marks the injected profile message. */
 export const PROFILE_SECTION = `${NAME}/profile`;
 
+/** Notify-only update status route on dsh's shared API channel. */
+export const UPDATE_PATH = '/api/memoryskills/update';
+
 /** Plugin version reported to the MCP server. */
 export const CLIENT_VERSION = '0.1.0';

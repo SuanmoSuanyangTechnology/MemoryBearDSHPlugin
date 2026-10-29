@@ -10,6 +10,8 @@ import { ATTACHMENT_MODES, PREFERENCE_MODES, TOOL_SEARCH_SWITCHES, WRITE_MODES }
 /** Plugin configuration (validated by dsh's Loader). */
 export const Config = z.object({
     enabled: z.boolean().default(true),
+    /** Check npm for a newer release and show a notice; never auto-installs. */
+    updateCheck: z.boolean().default(true).volatile(),
     /** V1 service API root, e.g. `https://host/v1`. */
     baseURL: z.string().default('').volatile(),
     /**

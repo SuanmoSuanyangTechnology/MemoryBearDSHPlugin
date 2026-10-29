@@ -18,5 +18,8 @@ export const DEFAULT_KEY_REF = 'MEMORYSKILLS_API_KEY';
 /** Portal used when the field is empty (`DEFAULT_PORTAL` in the Host half). */
 export const DEFAULT_PORTAL = 'https://memoryskills.redbearai.com';
 
+/** Host route that exposes the notify-only update status. */
+export { UPDATE_PATH } from '../constants.js';
+
 /** Stylesheet id, also the dedupe key. */
 export const STYLE_ID = `${PKG}/config.css`;

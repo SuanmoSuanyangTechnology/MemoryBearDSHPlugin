@@ -22,6 +22,7 @@ import { errorText, resolveCredential, type PluginContext } from '@redbearai/dsh
 import { installPanel } from './features/panel.js';
 import { installRecall } from './features/recall.js';
 import { installTools } from './features/tools.js';
+import { installUpdateCheck } from './features/update.js';
 import { installWrite } from './features/write.js';
 import { createMemoryBearClient } from './services/memorybear-client.js';
 
@@ -33,6 +34,7 @@ export {
     PREFERENCE_MODES,
     SETTINGS_NAMESPACE,
     TOOL_SEARCH_SWITCHES,
+    UPDATE_PATH,
     WRITE_MODES,
 } from './constants.js';
 
@@ -72,14 +74,16 @@ export function apply(ctx: PluginContext, config: PluginConfig): void {
     const tools = installTools({ ctx, getConfig: current, client });
     installRecall({ ctx, getConfig: current, client, isToolRegistered: tools.isSearchRegistered });
 
+    installPanel({ ctx, getConfig: current, client });
+    const update = installUpdateCheck({ ctx, getConfig: current });
+
     // A Plugins-page save of volatile fields lands here, after the Loader has
     // committed the new values into the references `current()` reads.
     ctx.on('loader/volatile-update', () => {
         write.onSettingsChange();
         tools.sync();
+        update.check();
     });
-
-    installPanel({ ctx, getConfig: current, client });
 
     ctx.logger.info(`[${NAME}] loaded; endUser=${startup.endUserId}; profile=${startup.profile} recall=${startup.recall} preferences=${startup.preferenceMode} write=${startup.write}/${startup.writeMode} tool=${startup.tool}`);
 }

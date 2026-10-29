@@ -49,5 +49,14 @@
   "saved": "Saved. Takes effect on the next memory call, no restart needed.",
   "saveFailed": "The save did not land: {reason}",
   "invalid": "Enter a number of at least {min}.",
-  "invalidInt": "Enter a whole number of at least {min}."
+  "invalidInt": "Enter a whole number of at least {min}.",
+  "updateGroup": "Updates",
+  "updateCheck": "Check for new versions automatically",
+  "updateCheckHint": "Queries the npm registry at startup and when this page opens. It only shows a notice and never installs updates.",
+  "updateAvailable": "Version {latest} is available (current {current}).",
+  "updateAction": "Uninstall this plugin on the Plugins page, then install {spec} to upgrade.",
+  "copyUpdateCommand": "Copy update command",
+  "copied": "Copied",
+  "copyFailed": "Copy failed",
+  "updateProfileHint": "Replace PROFILE with your dsh profile name after copying."
 }

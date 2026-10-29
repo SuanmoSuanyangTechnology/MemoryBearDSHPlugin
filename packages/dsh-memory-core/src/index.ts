@@ -9,3 +9,4 @@ export * from './dsh/credentials.js';
 export * from './dsh/messages.js';
 export * from './dsh/tools.js';
 export * from './http/url.js';
+export * from './update.js';

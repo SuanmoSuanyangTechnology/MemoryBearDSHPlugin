@@ -3,10 +3,10 @@
  *
  * @module dsh-memoryskills/client/page
  */
-import { useEffect, useSyncExternalStore, type ChangeEvent, type ReactNode } from 'react';
-import { fill, type ConfigController, type PageComponent, type PageProps } from '@redbearai/dsh-memory-core/client';
+import { useEffect, useState, useSyncExternalStore, type ChangeEvent, type ReactNode } from 'react';
+import { copyText, fill, loadUpdateStatus, updateCommand, type ConfigController, type PageComponent, type PageProps, type UpdateStatus } from '@redbearai/dsh-memory-core/client';
 import { Checkbox, Field, SwitchField, TextInput } from './components/form.js';
-import { DEFAULT_PORTAL } from './constants.js';
+import { DEFAULT_PORTAL, PKG, UPDATE_PATH } from './constants.js';
 import { FIELDS, SEARCH_MODES } from './form-schema.js';
 import { loginURL } from './utils.js';
 
@@ -20,23 +20,61 @@ function credentialHint(s: ReturnType<ConfigController<typeof FIELDS>['getSnapsh
     ].join(' ');
 }
 
+function useUpdateStatus(path: string | undefined): UpdateStatus | undefined {
+    const [status, setStatus] = useState<UpdateStatus>();
+    useEffect(() => {
+        if (path === undefined) {
+            setStatus(undefined);
+            return;
+        }
+        const controller = new AbortController();
+        void loadUpdateStatus(path, controller.signal).then((next) => {
+            if (!controller.signal.aborted) setStatus(next);
+        });
+        return () => controller.abort();
+    }, [path]);
+    return status;
+}
+
 /** Build the page component for one controller instance. */
 export function makePage(controller: ConfigController<typeof FIELDS>): PageComponent {
     return function MemorySkillsConfig({ t, view }: PageProps): ReactNode {
         const s = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+        const f = s.fields;
+        const update = useUpdateStatus(view !== 'summary' && s.available && f.updateCheck.text ? UPDATE_PATH : undefined);
+        const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+        useEffect(() => {
+            if (copyState === 'idle') return;
+            const timer = setTimeout(() => setCopyState('idle'), 2_000);
+            return () => clearTimeout(timer);
+        }, [copyState]);
+        const copyUpdate = async (): Promise<void> => {
+            if (update?.latest === undefined) return;
+            setCopyState(await copyText(updateCommand(PKG, update.latest)) ? 'copied' : 'failed');
+        };
         // Leaving the page drops staged edits, like the official pages.
         useEffect(() => () => controller.discard(), []);
         if (view === 'summary') return t('summary');
         if (!s.available) return <p className="ms-hint">{s.loading ? t('loading') : t('unavailable')}</p>;
 
         const disabled = !s.writable || s.saving;
-        const f = s.fields;
         const mode = f.writeMode.text || 'batch';
         const cred = s.credential;
         const keyLocked = cred.configured && !cred.writable;
         return (
             <div className="ms-cfg">
                 {!s.writable ? <p className="ms-hint">{t('readOnly')}</p> : null}
+                {update?.available && update.latest ? (
+                    <div className="ms-update" role="status">
+                        <span>
+                            <strong>{fill(t('updateAvailable'), { latest: update.latest, current: update.current })}</strong>{' '}
+                            {fill(t('updateAction'), { spec: update.spec ?? update.latest })}
+                        </span>
+                        <button type="button" className="ms-copy" title={t('updateProfileHint')} onClick={() => void copyUpdate()}>
+                            {copyState === 'copied' ? t('copied') : copyState === 'failed' ? t('copyFailed') : t('copyUpdateCommand')}
+                        </button>
+                    </div>
+                ) : null}
                 <section className="ms-group">
                     <h4 className="ms-group-title">{t('connection')}</h4>
                     <Field
@@ -179,6 +217,10 @@ export function makePage(controller: ConfigController<typeof FIELDS>): PageCompo
                             <TextInput id="ms-idle" state={f.writeIdleMinutes} disabled={disabled} onEdit={(value) => controller.edit('writeIdleMinutes', value)} inputMode="decimal" />
                         </Field>
                     ) : null}
+                </section>
+                <section className="ms-group">
+                    <h4 className="ms-group-title">{t('updateGroup')}</h4>
+                    <SwitchField id="ms-update-check" field="updateCheck" label={t('updateCheck')} hint={t('updateCheckHint')} fields={f} disabled={disabled} t={t} controller={controller} />
                 </section>
                 <div className="ms-actions">
                     <button

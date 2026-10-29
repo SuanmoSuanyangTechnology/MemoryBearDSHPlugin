@@ -116,5 +116,14 @@
   "saved": "已保存，下一次读写记忆即生效，无需重启。",
   "saveFailed": "保存没有生效：{reason}",
   "invalid": "请填写不小于 {min} 的数字。",
-  "invalidInt": "请填写不小于 {min} 的整数。"
+  "invalidInt": "请填写不小于 {min} 的整数。",
+  "updateGroup": "更新",
+  "updateCheck": "自动检查新版本",
+  "updateCheckHint": "启动和打开配置页时查询 npm registry。发现新版本只提示，不自动安装。",
+  "updateAvailable": "有新版本 {latest}（当前 {current}）。",
+  "updateAction": "在 Plugins 页卸载后重新安装 {spec} 即可升级。",
+  "copyUpdateCommand": "复制更新命令",
+  "copied": "已复制",
+  "copyFailed": "复制失败",
+  "updateProfileHint": "复制后把 PROFILE 替换为你的 dsh profile 名。"
 }

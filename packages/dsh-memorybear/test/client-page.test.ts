@@ -55,7 +55,7 @@ const mod = factory((id: string) => {
 
 // ── fake client services ──
 const base: Record<string, unknown> = {
-    baseURL: 'https://test/v1', endUserId: 'u-1', apiKeyEnv: 'MEMORY_SERVICE_API_KEY',
+    baseURL: 'https://test/v1', endUserId: 'u-1', apiKeyEnv: 'MEMORY_SERVICE_API_KEY', updateCheck: false,
     profile: true, recall: false, searchSwitch: 'express', toolSearchSwitches: ['express', 'quick'],
     write: true, writeMode: 'turn', writeEveryTurns: 3, writeIdleMinutes: 10,
 };
@@ -143,7 +143,7 @@ const saveButton = () => find(render(), (node) => node.props?.className === 'mb-
 assert.equal(Page!({ t, view: 'summary' }), 'summary');
 
 let tree = render();
-for (const id of ['mb-profile', 'mb-recall', 'mb-search-switch', 'mb-tool-express', 'mb-write', 'mb-base-url', 'mb-end-user', 'mb-api-key', 'mb-write-mode']) {
+for (const id of ['mb-profile', 'mb-recall', 'mb-search-switch', 'mb-tool-express', 'mb-write', 'mb-base-url', 'mb-end-user', 'mb-api-key', 'mb-write-mode', 'mb-update-check']) {
     assert.ok(byId(id), `control ${id} rendered`);
 }
 assert.equal(byId('mb-profile')!.props.checked, true);

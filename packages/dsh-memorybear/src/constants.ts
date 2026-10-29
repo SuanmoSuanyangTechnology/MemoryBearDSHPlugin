@@ -32,6 +32,9 @@ export type ToolSearchSwitch = (typeof TOOL_SEARCH_SWITCHES)[number];
 /** Memory panel data route on dsh's shared API channel (full path, `/api` included). */
 export const INSIGHTS_PATH = '/api/memorybear/insights';
 
+/** Notify-only update status route on dsh's shared API channel. */
+export const UPDATE_PATH = '/api/memorybear/update';
+
 /** Section name that marks the injected profile message in session history. */
 export const PROFILE_SECTION = `${NAME}/profile`;
 

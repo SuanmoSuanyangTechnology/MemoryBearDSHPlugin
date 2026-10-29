@@ -10,6 +10,8 @@ import { DEFAULT_PORTAL, TOOL_SEARCH_SWITCHES, WRITE_MODES } from './constants.j
 /** Plugin configuration (validated by dsh's Loader). */
 export const Config = z.object({
     enabled: z.boolean().default(true),
+    /** Check npm for a newer release and show a notice; never auto-installs. */
+    updateCheck: z.boolean().default(true).volatile(),
     /** MemorySkills Portal root, e.g. `https://memoryskills.redbearai.com`. */
     portalURL: z.string().default(DEFAULT_PORTAL).volatile(),
     /**

@@ -32,6 +32,7 @@ export const FIELDS = {
     writeIdleMinutes: { kind: 'number', min: 0.1 },
     attachments: { kind: 'select', options: ['none', 'images', 'all'] },
     panel: { kind: 'bool' },
+    updateCheck: { kind: 'bool' },
 } as const satisfies FieldSpecMap;
 
 export type FieldName = keyof typeof FIELDS;

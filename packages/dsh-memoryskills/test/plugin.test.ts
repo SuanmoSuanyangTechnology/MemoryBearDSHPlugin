@@ -80,7 +80,7 @@ function fakeHost(layer: Record<string, unknown> = {}, { key = KEY } = {}): Fake
     const effects: Array<() => void> = [];
     const warnings: string[] = [];
     let values = {
-        ...snapshotConfig(Config({ portalURL: portal, apiKeyEnv: 'MS_TEST_KEY', ...layer })),
+        ...snapshotConfig(Config({ portalURL: portal, apiKeyEnv: 'MS_TEST_KEY', updateCheck: false, ...layer })),
     } as ConfigSnapshot;
     const config = Object.fromEntries(Object.keys(values).map((field) => [
         field,
@@ -92,10 +92,13 @@ function fakeHost(layer: Record<string, unknown> = {}, { key = KEY } = {}): Fake
         on: (event: string, handler: (...args: any[]) => any) => { handlers.set(event, handler); return () => handlers.delete(event); },
         effect: (effect: () => () => void) => { effects.push(effect()); },
         get: (name: string) => (name === 'credentials' ? { resolve: async (ref: string) => (ref === 'MS_TEST_KEY' && key ? { value: key } : undefined) } : undefined),
-        inject: (_deps: string[], callback: (context: unknown) => void) => callback({
-            tools: { register: (definition: ToolRegistration) => { tools.set(definition.name, definition); return () => tools.delete(definition.name); } },
-            effect: (effect: () => () => void) => { effects.push(effect()); },
-        }),
+        inject: (deps: string[], callback: (context: unknown) => void) => {
+            if (deps[0] === 'connection') return;
+            callback({
+                tools: { register: (definition: ToolRegistration) => { tools.set(definition.name, definition); return () => tools.delete(definition.name); } },
+                effect: (effect: () => () => void) => { effects.push(effect()); },
+            });
+        },
     } as unknown as PluginContext;
     apply(ctx, config);
     const session: Session = { id: 's-1', header: {}, eventAt: () => undefined };

@@ -17,7 +17,7 @@ export const NS = 'memorybear';
 export const DEFAULT_KEY_REF = 'MEMORYBEAR_API_KEY';
 
 /** dsh host route that exposes the memory panel payload (single source: `src/constants.ts`). */
-export { INSIGHTS_PATH } from '../constants.js';
+export { INSIGHTS_PATH, UPDATE_PATH } from '../constants.js';
 
 /** Stylesheet id, also the dedupe key. */
 export const STYLE_ID = `${PKG}/config.css`;

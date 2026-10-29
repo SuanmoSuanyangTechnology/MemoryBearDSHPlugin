@@ -20,12 +20,13 @@ import { snapshotConfig, type PluginConfig } from './config.js';
 import { errorText, resolveCredential, type PluginContext } from '@redbearai/dsh-memory-core';
 import { installRecall } from './features/recall.js';
 import { installTools } from './features/tools.js';
+import { installUpdateCheck } from './features/update.js';
 import { installWrite } from './features/write.js';
 import { normalizeBaseUrl } from './services/api.js';
 import { createPortalClient } from './services/portal-client.js';
 
 export { Config } from './config.js';
-export { DEFAULT_PORTAL, NAME, TOOL_SEARCH_SWITCHES, WRITE_MODES } from './constants.js';
+export { DEFAULT_PORTAL, NAME, TOOL_SEARCH_SWITCHES, UPDATE_PATH, WRITE_MODES } from './constants.js';
 
 /** Cordis plugin name; also the `source.kind` of injected messages. */
 export const name = NAME;
@@ -55,11 +56,13 @@ export function apply(ctx: PluginContext, config: PluginConfig): void {
     const write = installWrite({ ctx, getConfig: current, client, resolveKey });
     const tools = installTools({ ctx, getConfig: current, client });
     installRecall({ ctx, getConfig: current, client, isToolRegistered: tools.isSearchRegistered });
+    const update = installUpdateCheck({ ctx, getConfig: current });
 
     ctx.on('loader/volatile-update', () => {
         client.reset();
         write.onSettingsChange();
         tools.sync();
+        update.check();
     });
 
     if (!configured(startup)) {
