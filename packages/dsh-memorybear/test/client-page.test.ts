@@ -106,7 +106,6 @@ const ctx = {
     },
     configForms: {
         get: (entryId: string) => { assert.equal(entryId, 'memorybear-memory'); return scope; },
-        whileServed: (namespaces: string[], register: () => void) => { assert.equal(JSON.stringify(namespaces), '["memorybear-memory"]'); register(); return () => {}; },
     },
     slots: {
         inject: (name: string, callback: () => void) => { assert.equal(name, 'plugins.bundle.config'); callback(); return () => {}; },

@@ -77,7 +77,6 @@ const scope: ConfigScope = {
 };
 let Page: ((props: { t: (key: string) => string; view?: string }) => unknown) | undefined;
 let pageKey: string | undefined;
-let servedNs: string[] | undefined;
 let credentialConfigured = false;
 let credentialWritable = true;
 const credentialSets: Array<[string, string]> = [];
@@ -94,7 +93,6 @@ const ctx = {
     },
     configForms: {
         get: (namespace: string) => { assert.equal(namespace, 'memoryskills-memory'); return scope; },
-        whileServed: (namespaces: string[], register: () => void) => { servedNs = namespaces; register(); return () => {}; },
     },
     slots: {
         inject: (name: string, callback: () => void) => { assert.equal(name, 'plugins.bundle.config'); callback(); return () => {}; },
@@ -125,9 +123,8 @@ async function run(label: string, fn: () => void | Promise<void>): Promise<void>
     console.log(`ok   ${label}`);
 }
 
-await run('page registers on the bundle key while the entry is served', () => {
+await run('page registers on the bundle key while the bundle is mounted', () => {
     assert.equal(pageKey, '@redbearai/dsh-memoryskills');
-    assert.equal(JSON.stringify(servedNs), '["memoryskills-memory"]');
     assert.equal(Page!({ t: (key) => key, view: 'summary' }), 'summary');
 });
 

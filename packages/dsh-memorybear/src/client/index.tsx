@@ -35,10 +35,12 @@ export function apply(ctx: MemoryBearClientContext): void {
         if (typeof ref === 'string') controller.refreshCredential(ref);
     }), `${PKG}: credential invalidations`);
     const Page = makePage(controller);
-    // Shown only while the Host serves the entry (plugin enabled and mounted).
-    ctx.effect(() => ctx.configForms.whileServed([SETTINGS_NS], () => ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
+    // Register like an official bundle config page: the client module exists only
+    // while the bundle is mounted, so a separate namespace gate would keep the
+    // page hidden after a hot install until the browser settings mirror refreshes.
+    ctx.effect(() => ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
         name: 'plugins.bundle.config',
         key: PKG,
         locale: NS,
-    }, Page))), `${PKG}: page`);
+    }, Page)), `${PKG}: page`);
 }
